@@ -140,9 +140,9 @@ function App() {
             className="menu-btn"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             aria-label="サイドバー切替"
-            title={sidebarCollapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
+            title={sidebarCollapsed ? 'マイカレンダーを開く' : 'マイカレンダーを閉じる'}
           >
-            {sidebarCollapsed ? '▶' : '◀'}
+            {sidebarCollapsed ? '☰' : '✕'}
           </button>
           <h1 className="header-title">{getTitle()}</h1>
         </div>
