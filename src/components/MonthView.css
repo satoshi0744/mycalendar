@@ -1,0 +1,159 @@
+.month-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  user-select: none;
+}
+
+.month-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+}
+
+.month-header-cell {
+  text-align: center;
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.month-header-cell.saturday { color: var(--primary); }
+.month-header-cell.sunday { color: var(--error); }
+
+.month-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.month-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+  min-height: 80px;
+}
+
+.month-cell {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  overflow: hidden;
+}
+
+.month-cell:last-child {
+  border-right: none;
+}
+
+.month-cell:hover {
+  background: var(--surface-hover);
+}
+
+/* 当月外（前月・翌月）のセル */
+.month-cell.other-month {
+  opacity: 0.35;
+}
+
+/* 過去日（今日より前）のセル */
+.month-cell.past {
+  opacity: 0.5;
+}
+
+/* 当月外 かつ 過去日（より一層薄く） */
+.month-cell.other-month.past {
+  opacity: 0.25;
+}
+
+/* 今日は常に明るく */
+.month-cell.today {
+  background: var(--today-bg);
+  opacity: 1;
+}
+
+.month-date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  border-radius: 50%;
+  margin-bottom: 2px;
+}
+
+.month-date.today-circle {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.month-events {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* --- イベント共通 --- */
+.month-event {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border-left: 5px solid var(--primary);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.1s;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.month-event:hover {
+  background: var(--surface-hover);
+}
+
+/* --- 終日イベント --- */
+.month-event.all-day {
+  border-left: none;
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: #fff;
+  font-weight: 500;
+}
+
+/* 終日イベントが過去日にある場合：テキスト色を通常に戻す */
+.month-event.all-day.past-event {
+  color: var(--text-primary);
+}
+
+.month-event-time {
+  color: var(--text-secondary);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.month-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.month-event-more {
+  font-size: 10px;
+  color: var(--text-secondary);
+  padding: 1px 4px;
+  cursor: pointer;
+}
