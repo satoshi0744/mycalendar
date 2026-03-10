@@ -300,14 +300,55 @@ body {
   font-size: 12px;
 }
 
-/* --- Responsive --- */
+/* --- Responsive: Mobile --- */
 @media (max-width: 768px) {
+  .app-header {
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .header-left {
+    order: 1;
+    flex: 1;
+    min-width: 0;
+  }
+
   .header-title {
-    font-size: 15px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-center {
+    order: 2;
+    gap: 2px;
+  }
+
+  .header-right {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    border-top: 1px solid var(--border-light);
+    padding-top: 4px;
+    gap: 4px;
+  }
+
+  .menu-btn, .nav-btn, .refresh-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
   }
 
   .today-btn {
-    padding: 5px 10px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .signout-btn {
+    width: 28px;
+    height: 28px;
     font-size: 12px;
   }
 

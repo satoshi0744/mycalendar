@@ -7,6 +7,34 @@ import type { AppEvent, CalendarInfo, ViewMode } from '../data/types';
 import { getEventsForRange, getAllCalendars } from '../data/eventRepository';
 import { isAuthenticated } from '../auth/GoogleAuth';
 
+const VISIBILITY_STORAGE_KEY = '__mycal_calendar_visibility';
+
+/** カレンダーの表示/非表示設定をlocalStorageに保存 */
+function saveVisibility(calendars: CalendarInfo[]): void {
+  try {
+    const map: Record<string, boolean> = {};
+    for (const c of calendars) {
+      map[c.id] = c.visible;
+    }
+    localStorage.setItem(VISIBILITY_STORAGE_KEY, JSON.stringify(map));
+  } catch { /* ignore */ }
+}
+
+/** localStorageからカレンダーの表示/非表示設定を復元 */
+function restoreVisibility(calendars: CalendarInfo[]): CalendarInfo[] {
+  try {
+    const stored = localStorage.getItem(VISIBILITY_STORAGE_KEY);
+    if (stored) {
+      const map: Record<string, boolean> = JSON.parse(stored);
+      return calendars.map(c => ({
+        ...c,
+        visible: map[c.id] !== undefined ? map[c.id] : c.visible,
+      }));
+    }
+  } catch { /* ignore */ }
+  return calendars;
+}
+
 interface UseCalendarDataReturn {
   events: AppEvent[];
   calendars: CalendarInfo[];
@@ -36,11 +64,14 @@ export function useCalendarData(): UseCalendarDataReturn {
   calendarsRef.current = calendars;
 
   const toggleCalendarVisibility = useCallback((calendarId: string) => {
-    setCalendars(prev =>
-      prev.map(c =>
+    setCalendars(prev => {
+      const updated = prev.map(c =>
         c.id === calendarId ? { ...c, visible: !c.visible } : c
-      )
-    );
+      );
+      // 変更をlocalStorageに保存
+      saveVisibility(updated);
+      return updated;
+    });
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -54,8 +85,10 @@ export function useCalendarData(): UseCalendarDataReturn {
       let currentCalendars = calendarsRef.current;
       if (currentCalendars.length === 0) {
         const calList = await getAllCalendars();
-        setCalendars(calList);
-        currentCalendars = calList; // 取得直後の値を直接使う
+        // localStorageから前回の表示/非表示設定を復元
+        const restored = restoreVisibility(calList);
+        setCalendars(restored);
+        currentCalendars = restored;
       }
 
       if (currentCalendars.length === 0) {

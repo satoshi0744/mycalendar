@@ -66,9 +66,9 @@ let userInfo: { name: string | null; email: string | null } = { name: null, emai
  */
 function restoreSession(): void {
   try {
-    const storedToken = sessionStorage.getItem(STORAGE_KEY_TOKEN);
-    const storedExpires = sessionStorage.getItem(STORAGE_KEY_EXPIRES);
-    const storedUser = sessionStorage.getItem(STORAGE_KEY_USER);
+    const storedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
+    const storedExpires = localStorage.getItem(STORAGE_KEY_EXPIRES);
+    const storedUser = localStorage.getItem(STORAGE_KEY_USER);
 
     if (storedToken && storedExpires) {
       const expires = parseInt(storedExpires, 10);
@@ -79,24 +79,29 @@ function restoreSession(): void {
           try { userInfo = JSON.parse(storedUser); } catch { /* ignore */ }
         }
       } else {
-        // 期限切れのトークンをクリア
-        clearSession();
+        // 期限切れ → ユーザー情報は保持しつつトークンだけクリア
+        // silentRefreshで自動再取得を試みる
+        accessToken = null;
+        tokenExpiresAt = 0;
+        if (storedUser) {
+          try { userInfo = JSON.parse(storedUser); } catch { /* ignore */ }
+        }
       }
     }
   } catch {
-    // sessionStorageが使えない環境は無視
+    // localStorageが使えない環境は無視
   }
 }
 
 /**
- * sessionStorageにトークンを保存する。
+ * localStorageにトークンを保存する。
  */
 function saveSession(): void {
   try {
     if (accessToken) {
-      sessionStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
-      sessionStorage.setItem(STORAGE_KEY_EXPIRES, String(tokenExpiresAt));
-      sessionStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userInfo));
+      localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
+      localStorage.setItem(STORAGE_KEY_EXPIRES, String(tokenExpiresAt));
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userInfo));
     }
   } catch {
     // ignore
@@ -108,9 +113,9 @@ function saveSession(): void {
  */
 function clearSession(): void {
   try {
-    sessionStorage.removeItem(STORAGE_KEY_TOKEN);
-    sessionStorage.removeItem(STORAGE_KEY_EXPIRES);
-    sessionStorage.removeItem(STORAGE_KEY_USER);
+    localStorage.removeItem(STORAGE_KEY_TOKEN);
+    localStorage.removeItem(STORAGE_KEY_EXPIRES);
+    localStorage.removeItem(STORAGE_KEY_USER);
   } catch {
     // ignore
   }
@@ -161,6 +166,10 @@ export function initAuth(clientId: string): void {
   // セッションが復元されている場合はリスナーに通知
   if (isAuthenticated()) {
     notifyListeners();
+  } else if (hint) {
+    // トークン期限切れだがlogin_hintがある → バックグラウンドで自動再認証
+    // これによりログイン画面をスキップできる
+    silentRefresh();
   }
 }
 

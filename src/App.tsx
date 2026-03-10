@@ -16,8 +16,8 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 function App() {
   const [authState, setAuthState] = useState<AuthState>(getAuthState());
-  const [sidebarOpen, setSidebarOpen] = useState(true); // デスクトップではデフォルト開く
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // サイドバー折りたたみ状態
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // デフォルト折りたたみ
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
   const [eventFormDate, setEventFormDate] = useState<Date | undefined>(undefined);
