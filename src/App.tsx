@@ -16,8 +16,8 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 function App() {
   const [authState, setAuthState] = useState<AuthState>(getAuthState());
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // デフォルト折りたたみ
+  const [authLoading, setAuthLoading] = useState(true); // 認証復元中のローディング
+  const [sidebarOpen, setSidebarOpen] = useState(false); // サイドバー開閉（統一）
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
   const [eventFormDate, setEventFormDate] = useState<Date | undefined>(undefined);
@@ -38,11 +38,17 @@ function App() {
     if (CLIENT_ID) {
       initAuth(CLIENT_ID);
     }
-    return onAuthStateChange(setAuthState);
+    const unsubscribe = onAuthStateChange((state) => {
+      setAuthState(state);
+      setAuthLoading(false); // 認証状態が確定したらローディング終了
+    });
+    // 5秒経っても認証状態が来なければローディング終了（タイムアウト）
+    const timeout = setTimeout(() => setAuthLoading(false), 5000);
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
-
-  // 認証が通った直後にsessionStorageから復元した場合、自動的にデータ取得される
-  // トークン期限切れ時に自動でsilentRefreshが走る（GoogleAuth.ts内）
 
   // ビューに表示するイベント（非表示カレンダーを除外）
   const visibleCalendarIds = new Set(
@@ -82,13 +88,10 @@ function App() {
         return `${y}年`;
       case 'month':
         return `${y}年${m}月`;
-      case 'week': {
-        const weekEnd = new Date(currentDate);
-        weekEnd.setDate(weekEnd.getDate() + 6 - ((weekEnd.getDay() + 6) % 7));
-        return `${y}年${m}月${d}日〜`;
-      }
+      case 'week':
+        return `${y}/${m}/${d}〜`;
       case 'day':
-        return `${y}年${m}月${d}日`;
+        return `${y}/${m}/${d}`;
     }
   };
 
@@ -99,8 +102,6 @@ function App() {
     setShowEventForm(true);
   };
 
-
-
   // EventFormを閉じる
   const closeEventForm = () => {
     setShowEventForm(false);
@@ -108,12 +109,27 @@ function App() {
     setEventFormDate(undefined);
   };
 
+  // 認証復元中のローディング画面
+  if (authLoading && !authState.isSignedIn) {
+    return (
+      <div className="login-screen">
+        <div className="login-card">
+          <div className="login-icon">🔄</div>
+          <h1>MyCalendar</h1>
+          <p>ログイン中...</p>
+        </div>
+      </div>
+    );
+  }
+
   // 未認証の場合はログイン画面
   if (!authState.isSignedIn) {
     return (
       <div className="login-screen">
         <div className="login-card">
-          <div className="login-icon">📅</div>
+          <div className="login-icon-calendar">
+            <span className="login-icon-day">{new Date().getDate()}</span>
+          </div>
           <h1>MyCalendar</h1>
           <p>Googleカレンダーのビューアアプリ</p>
           <p className="login-subtitle">過去のアーカイブ予定もシームレスに表示</p>
@@ -138,11 +154,11 @@ function App() {
         <div className="header-left">
           <button
             className="menu-btn"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            aria-label="サイドバー切替"
-            title={sidebarCollapsed ? 'マイカレンダーを開く' : 'マイカレンダーを閉じる'}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label="マイカレンダー切替"
+            title={sidebarOpen ? 'マイカレンダーを閉じる' : 'マイカレンダーを開く'}
           >
-            {sidebarCollapsed ? '☰' : '✕'}
+            {sidebarOpen ? '✕' : '☰'}
           </button>
           <h1 className="header-title">{getTitle()}</h1>
         </div>
@@ -164,15 +180,15 @@ function App() {
 
       <div className="app-body">
         {/* サイドバー（カレンダー一覧） */}
-        <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'open' : ''}`}>
+        <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           <CalendarList
             calendars={calendars}
             onToggle={toggleCalendarVisibility}
           />
         </aside>
 
-        {/* モバイル用オーバーレイ */}
-        {sidebarOpen && !sidebarCollapsed && (
+        {/* オーバーレイ（サイドバー開いてる時にタップで閉じる） */}
+        {sidebarOpen && (
           <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
         )}
 

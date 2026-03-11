@@ -150,47 +150,41 @@ body {
   position: relative;
 }
 
-/* --- Sidebar --- */
+/* --- Sidebar (always overlay) --- */
 .sidebar {
-  width: 260px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
   border-right: 1px solid var(--border);
   background: var(--surface);
   overflow-y: auto;
   flex-shrink: 0;
-  transition: width 0.25s ease, transform 0.25s ease;
+  z-index: 30;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  box-shadow: var(--shadow-lg);
 }
 
-.sidebar.collapsed {
-  width: 0;
-  overflow: hidden;
-  border-right: none;
+.sidebar.open {
+  transform: translateX(0);
 }
 
-/* Mobile: sidebar as overlay */
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .sidebar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 20;
-    transform: translateX(-100%);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
+    width: 260px;
   }
 }
 
 .sidebar-overlay {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.3);
-  z-index: 15;
+  z-index: 25;
 }
 
 /* --- Calendar Main View --- */
@@ -244,6 +238,36 @@ body {
 .login-icon {
   font-size: 56px;
   margin-bottom: 16px;
+}
+
+.login-icon-calendar {
+  width: 72px;
+  height: 72px;
+  background: var(--primary);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  position: relative;
+}
+
+.login-icon-calendar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 16px 16px 0 0;
+}
+
+.login-icon-day {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 6px;
 }
 
 .login-card h1 {
