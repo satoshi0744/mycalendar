@@ -8,7 +8,6 @@ import { getEventsForRange, getAllCalendars } from '../data/eventRepository';
 import { isAuthenticated } from '../auth/GoogleAuth';
 
 const VISIBILITY_STORAGE_KEY = '__mycal_calendar_visibility';
-const DEFAULT_CALENDAR_KEY = '__mycal_default_calendar';
 
 /** カレンダーの表示/非表示設定をlocalStorageに保存 */
 function saveVisibility(calendars: CalendarInfo[]): void {
@@ -43,11 +42,9 @@ interface UseCalendarDataReturn {
   error: string | null;
   currentDate: Date;
   viewMode: ViewMode;
-  defaultCalendarId: string | null;
   setCurrentDate: (date: Date) => void;
   setViewMode: (mode: ViewMode) => void;
   toggleCalendarVisibility: (calendarId: string) => void;
-  setDefaultCalendar: (calendarId: string) => void;
   refresh: () => void;
 }
 
@@ -61,13 +58,6 @@ export function useCalendarData(): UseCalendarDataReturn {
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [defaultCalendarId, setDefaultCalendarId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(DEFAULT_CALENDAR_KEY);
-    } catch {
-      return null;
-    }
-  });
 
   // カレンダー一覧を保持するrefで、クロージャの古い値問題を回避
   const calendarsRef = useRef<CalendarInfo[]>([]);
@@ -82,13 +72,6 @@ export function useCalendarData(): UseCalendarDataReturn {
       saveVisibility(updated);
       return updated;
     });
-  }, []);
-
-  const setDefaultCalendar = useCallback((calendarId: string) => {
-    setDefaultCalendarId(calendarId);
-    try {
-      localStorage.setItem(DEFAULT_CALENDAR_KEY, calendarId);
-    } catch { /* ignore */ }
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -163,11 +146,9 @@ export function useCalendarData(): UseCalendarDataReturn {
     error,
     currentDate,
     viewMode,
-    defaultCalendarId,
     setCurrentDate,
     setViewMode,
     toggleCalendarVisibility,
-    setDefaultCalendar,
     refresh,
   };
 }

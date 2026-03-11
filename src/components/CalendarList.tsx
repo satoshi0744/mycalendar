@@ -4,10 +4,12 @@ import './CalendarList.css';
 
 interface Props {
   calendars: CalendarInfo[];
+  defaultCalendarId: string | null;
   onToggle: (calendarId: string) => void;
+  onSetDefault: (calendarId: string) => void;
 }
 
-export default function CalendarList({ calendars, onToggle }: Props) {
+export default function CalendarList({ calendars, defaultCalendarId, onToggle, onSetDefault }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   if (calendars.length === 0) {
@@ -31,23 +33,36 @@ export default function CalendarList({ calendars, onToggle }: Props) {
       </div>
       {!collapsed && (
         <ul className="calendar-list-items">
-          {calendars.map(cal => (
-            <li key={cal.id} className="calendar-list-item">
-              <label className="calendar-list-label">
-                <input
-                  type="checkbox"
-                  checked={cal.visible}
-                  onChange={() => onToggle(cal.id)}
-                  className="calendar-checkbox"
-                />
-                <span
-                  className="calendar-color-dot"
-                  style={{ backgroundColor: cal.color }}
-                />
-                <span className="calendar-name">{cal.name}</span>
-              </label>
-            </li>
-          ))}
+          {calendars.map(cal => {
+            const isWritable = cal.id.includes('@');
+            return (
+              <li key={cal.id} className="calendar-list-item">
+                <label className="calendar-list-label">
+                  <input
+                    type="checkbox"
+                    checked={cal.visible}
+                    onChange={() => onToggle(cal.id)}
+                    className="calendar-checkbox"
+                  />
+                  <span
+                    className="calendar-color-dot"
+                    style={{ backgroundColor: cal.color }}
+                  />
+                  <span className="calendar-name">{cal.name}</span>
+                </label>
+                {isWritable && (
+                  <button
+                    className={`calendar-default-btn ${defaultCalendarId === cal.id ? 'active' : ''}`}
+                    onClick={() => onSetDefault(cal.id)}
+                    title={defaultCalendarId === cal.id ? '現在のデフォルトカレンダー' : 'デフォルトカレンダーに設定'}
+                    aria-label="デフォルトに設定"
+                  >
+                    📌
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

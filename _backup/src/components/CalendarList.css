@@ -63,13 +63,9 @@
 
 .calendar-list-item {
   margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .calendar-list-label {
-  flex: 1;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -103,31 +99,4 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.calendar-default-btn {
-  background: none;
-  border: none;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  opacity: 0; /* hover時かactive時に表示 */
-  transition: opacity 0.15s, background 0.15s;
-  flex-shrink: 0;
-  filter: grayscale(100%);
-}
-
-.calendar-list-item:hover .calendar-default-btn {
-  opacity: 0.5;
-}
-
-.calendar-default-btn:hover {
-  opacity: 1 !important;
-  background: var(--surface-hover);
-}
-
-.calendar-default-btn.active {
-  opacity: 1;
-  filter: grayscale(0%);
 }

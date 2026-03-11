@@ -28,11 +28,9 @@ function App() {
     loading,
     currentDate,
     viewMode,
-    defaultCalendarId,
     setCurrentDate,
     setViewMode,
     toggleCalendarVisibility,
-    setDefaultCalendar,
     refresh,
   } = useCalendarData();
 
@@ -104,25 +102,12 @@ function App() {
     setShowEventForm(true);
   };
 
-  // 既存予定の編集・詳細を開く
-  const openEditEvent = (event: AppEvent) => {
-    setEditingEvent(event);
-    setEventFormDate(undefined);
-    setShowEventForm(true);
-  };
-
   // EventFormを閉じる
   const closeEventForm = () => {
     setShowEventForm(false);
     setEditingEvent(null);
     setEventFormDate(undefined);
   };
-
-  // 1. ユーザーが明示的に保存したカレンダー
-  // 2. なければ表示されているカレンダーのうち、書き込み可能な（メアド形式の）最初のカレンダー
-  const writableVisibleCalendars = calendars.filter(c => c.visible && c.id.includes('@'));
-  const fallbackCalendarId = writableVisibleCalendars[0]?.id;
-  const initialCalendarId = defaultCalendarId || fallbackCalendarId;
 
   // 認証復元中のローディング画面
   if (authLoading && !authState.isSignedIn) {
@@ -198,9 +183,7 @@ function App() {
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           <CalendarList
             calendars={calendars}
-            defaultCalendarId={initialCalendarId || null}
             onToggle={toggleCalendarVisibility}
-            onSetDefault={setDefaultCalendar}
           />
         </aside>
 
@@ -226,7 +209,6 @@ function App() {
               events={visibleEvents}
               calendars={calendars}
               onDateClick={(d: Date) => { setCurrentDate(d); setViewMode('day'); }}
-              onEventClick={openEditEvent}
             />
           )}
           {viewMode === 'week' && (
@@ -234,7 +216,6 @@ function App() {
               currentDate={currentDate}
               events={visibleEvents}
               calendars={calendars}
-              onEventClick={openEditEvent}
             />
           )}
           {viewMode === 'day' && (
@@ -242,7 +223,6 @@ function App() {
               currentDate={currentDate}
               events={visibleEvents}
               calendars={calendars}
-              onEventClick={openEditEvent}
             />
           )}
         </main>
@@ -264,7 +244,6 @@ function App() {
           event={editingEvent}
           calendars={calendars}
           initialDate={eventFormDate}
-          initialCalendarId={initialCalendarId}
           onClose={closeEventForm}
           onSaved={refresh}
         />

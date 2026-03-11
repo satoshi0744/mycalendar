@@ -7,7 +7,6 @@ interface Props {
   events: AppEvent[];
   calendars: CalendarInfo[];
   onDateClick: (date: Date) => void;
-  onEventClick?: (event: AppEvent) => void;
 }
 
 /** 月曜始まりの曜日インデックス (月=0, 火=1, ... 日=6) */
@@ -29,7 +28,7 @@ function isBeforeDay(a: Date, b: Date): boolean {
   return aDate.getTime() < bDate.getTime();
 }
 
-export default function MonthView({ currentDate, events, calendars, onDateClick, onEventClick }: Props) {
+export default function MonthView({ currentDate, events, calendars, onDateClick }: Props) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const today = new Date();
@@ -133,10 +132,6 @@ export default function MonthView({ currentDate, events, calendars, onDateClick,
                           : { borderLeftColor: evColor }
                         }
                         title={event.title}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onEventClick) onEventClick(event);
-                        }}
                       >
                         {!event.isAllDay && (
                           <span className="month-event-time">

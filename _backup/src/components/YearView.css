@@ -1,0 +1,136 @@
+.year-view {
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .year-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .year-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 月カード */
+.year-month-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.year-month-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.year-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.year-month-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.year-month-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* 曜日ヘッダー */
+.year-month-days-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 2px;
+}
+
+.year-dow {
+  text-align: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+
+.year-dow.saturday { color: var(--primary); }
+.year-dow.sunday { color: var(--error); }
+
+/* 日付グリッド */
+.year-month-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.year-week-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.year-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-primary);
+  height: 22px;
+  border-radius: 50%;
+  position: relative;
+  user-select: none;
+}
+
+.year-day.empty {
+  visibility: hidden;
+}
+
+.year-day.today {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto;
+}
+
+.year-day.has-events {
+  font-weight: 600;
+}
+
+.year-day-dot {
+  position: absolute;
+  bottom: 0px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.year-day.today .year-day-dot {
+  background-color: #fff !important;
+}

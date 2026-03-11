@@ -26,8 +26,6 @@ interface Props {
   calendars: CalendarInfo[];
   /** フォームを開いた時の初期日時（新規作成時に使用） */
   initialDate?: Date;
-  /** デフォルトで選択されるカレンダーID */
-  initialCalendarId?: string;
   /** フォームを閉じる */
   onClose: () => void;
   /** 保存・削除後にデータを再読込する */
@@ -38,7 +36,6 @@ export default function EventForm({
   event,
   calendars,
   initialDate,
-  initialCalendarId,
   onClose,
   onSaved,
 }: Props) {
@@ -46,7 +43,7 @@ export default function EventForm({
 
   // 書き込み可能なカレンダー（IDがメールアドレス形式のものはオーナーカレンダー）
   const writableCalendars = calendars.filter(c => c.id.includes('@'));
-  const defaultCalendarId = event?.calendarId || initialCalendarId || writableCalendars[0]?.id || calendars[0]?.id || '';
+  const defaultCalendarId = event?.calendarId || writableCalendars[0]?.id || calendars[0]?.id || '';
 
   // 初期値の計算
   const defaultStart = event ? event.start : (initialDate || new Date());
@@ -136,31 +133,6 @@ export default function EventForm({
     }
   };
 
-  // ユーティリティ: YYYY-MM-DDのフォーマット表示用（例: 2026/03/11）
-  const formatDisplayDate = (dateString: string) => {
-    if (!dateString) return '';
-    return dateString.replace(/-/g, '/');
-  };
-
-  // ユーティリティ: 指定されたYYYY-MM-DDの曜日を取得
-  const getDayOfWeek = (dateString: string) => {
-    if (!dateString) return '';
-    const d = new Date(`${dateString}T00:00:00`);
-    if (isNaN(d.getTime())) return '';
-    const dows = ['日', '月', '火', '水', '木', '金', '土'];
-    return dows[d.getDay()];
-  };
-
-  const getDowClass = (dateString: string) => {
-    if (!dateString) return '';
-    const d = new Date(`${dateString}T00:00:00`);
-    if (isNaN(d.getTime())) return '';
-    const day = d.getDay();
-    if (day === 0) return 'dow-sunday';
-    if (day === 6) return 'dow-saturday';
-    return '';
-  };
-
   // カレンダー色のプレビュー
   const selectedCalColor = calendars.find(c => c.id === calendarId)?.color || '#4285f4';
   // 実際に表示する色（イベント色 > カレンダー色）
@@ -206,22 +178,11 @@ export default function EventForm({
           <div className="event-form-datetime">
             <div className="event-form-row">
               <label>開始</label>
-              <div className="event-form-date-input-wrapper">
-                {/* 見た目用のテキスト */}
-                <div className="event-form-date-display">
-                  <span className="event-form-date-text">{formatDisplayDate(startDate)}</span>
-                  <span className={`event-form-dow ${getDowClass(startDate)}`}> ({getDayOfWeek(startDate)})</span>
-                  <span className="event-form-calendar-icon">📅</span>
-                </div>
-                {/* 実際の入力用（透明にして全体を覆う） */}
-                <input
-                  type="date"
-                  className="event-form-date-native"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  tabIndex={0}
-                />
-              </div>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+              />
               {!isAllDay && (
                 <input
                   type="time"
@@ -232,20 +193,11 @@ export default function EventForm({
             </div>
             <div className="event-form-row">
               <label>終了</label>
-              <div className="event-form-date-input-wrapper">
-                <div className="event-form-date-display">
-                  <span className="event-form-date-text">{formatDisplayDate(endDate)}</span>
-                  <span className={`event-form-dow ${getDowClass(endDate)}`}> ({getDayOfWeek(endDate)})</span>
-                  <span className="event-form-calendar-icon">📅</span>
-                </div>
-                <input
-                  type="date"
-                  className="event-form-date-native"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  tabIndex={0}
-                />
-              </div>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+              />
               {!isAllDay && (
                 <input
                   type="time"

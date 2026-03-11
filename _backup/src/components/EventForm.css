@@ -149,74 +149,8 @@
   transition: border-color 0.2s;
 }
 
-.event-form-row input[type="time"]:focus {
+.event-form-row input:focus {
   border-color: var(--primary);
-}
-
-/* カスタム日付入力のラッパー */
-.event-form-date-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  transition: border-color 0.2s;
-  height: 34px; /* input[type="time"] と高さを合わせる目安 */
-  width: 170px;
-  overflow: hidden;
-}
-
-.event-form-date-input-wrapper:focus-within {
-  border-color: var(--primary);
-}
-
-/* 見た目部分 */
-.event-form-date-display {
-  display: flex;
-  align-items: center;
-  padding: 6px 10px;
-  width: 100%;
-  pointer-events: none; /* 下のinputをクリックさせる */
-}
-
-.event-form-date-text {
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.event-form-dow {
-  font-size: 14px;
-  margin-left: 4px;
-}
-
-.event-form-dow { /* デフォルト */
-  color: var(--text-secondary);
-}
-
-.event-form-dow.dow-sunday {
-  color: #d32f2f;
-}
-
-.event-form-dow.dow-saturday {
-  color: #1976d2;
-}
-
-.event-form-calendar-icon {
-  margin-left: auto; /* 右端に寄せる */
-  font-size: 14px;
-  opacity: 0.6;
-}
-
-/* 透明なネイティブ入力（完全に重なる） */
-.event-form-date-native {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0; /* 完全に透明 */
-  cursor: pointer;
 }
 
 /* フィールド（場所・説明・カレンダー） */
@@ -258,34 +192,6 @@
 
 .event-form-field textarea {
   min-height: 60px;
-}
-
-/* カラー選択 */
-.event-form-colors {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 0;
-}
-
-.event-form-color-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: transform 0.1s, border-color 0.1s;
-  padding: 0;
-}
-
-.event-form-color-btn:hover {
-  transform: scale(1.1);
-}
-
-.event-form-color-btn.selected {
-  border-color: var(--text-primary);
-  transform: scale(1.1);
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text-primary);
 }
 
 /* エラー */

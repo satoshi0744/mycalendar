@@ -6,12 +6,11 @@ interface Props {
   currentDate: Date;
   events: AppEvent[];
   calendars: CalendarInfo[];
-  onEventClick?: (event: AppEvent) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export default function DayView({ currentDate, events, calendars, onEventClick }: Props) {
+export default function DayView({ currentDate, events, calendars }: Props) {
   // カレンダーIDから色を引くマップ
   const colorMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -57,10 +56,6 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
                 key={i}
                 className="day-allday-event"
                 style={{ backgroundColor: event.eventColor || colorMap.get(event.calendarId) || '#4285f4' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onEventClick) onEventClick(event);
-                }}
               >
                 {event.title}
               </div>
@@ -93,10 +88,6 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
                         backgroundColor: `${event.eventColor || colorMap.get(event.calendarId) || '#4285f4'}18`,
                         height: `${heightPx}px`,
                         top: `${topOffset}px`,
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onEventClick) onEventClick(event);
                       }}
                     >
                       <div className="day-event-time">

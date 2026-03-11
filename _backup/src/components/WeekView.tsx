@@ -6,7 +6,6 @@ interface Props {
   currentDate: Date;
   events: AppEvent[];
   calendars: CalendarInfo[];
-  onEventClick?: (event: AppEvent) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -19,7 +18,7 @@ function getMondayBasedDay(d: Date): number {
 /** 月曜始まりの曜日ラベル */
 const DAY_LABELS = ['月', '火', '水', '木', '金', '土', '日'];
 
-export default function WeekView({ currentDate, events, calendars, onEventClick }: Props) {
+export default function WeekView({ currentDate, events, calendars }: Props) {
   const today = new Date();
 
   // 週の日付配列（月曜始まり）
@@ -95,10 +94,6 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                       key={i}
                       className="week-allday-event"
                       style={{ backgroundColor: event.eventColor || colorMap.get(event.calendarId) || '#4285f4' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onEventClick) onEventClick(event);
-                      }}
                     >
                       {event.title}
                     </div>
@@ -151,10 +146,6 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                           top: `${topOffset}px`,
                         }}
                         title={`${event.title}\n${event.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} - ${event.end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onEventClick) onEventClick(event);
-                        }}
                       >
                         <span className="week-event-time">
                           {event.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
