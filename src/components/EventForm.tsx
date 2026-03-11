@@ -69,6 +69,7 @@ export default function EventForm({
   const [colorId, setColorId] = useState(initialColorId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isViewMode, setIsViewMode] = useState(isEdit); // 閲覧モードかどうかの状態
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -168,22 +169,77 @@ export default function EventForm({
     ? EVENT_COLORS.find(c => c.id === colorId)?.color || selectedCalColor
     : selectedCalColor;
 
+  // 閲覧表示用フォーマット
+  const formatViewDateTime = () => {
+    const startStr = `${formatDisplayDate(startDate)} ${getDayOfWeek(startDate)}`;
+    const endStr = `${formatDisplayDate(endDate)} ${getDayOfWeek(endDate)}`;
+    if (isAllDay) {
+      if (startDate === endDate) return startStr;
+      return `${startStr} ～ ${endStr}`;
+    } else {
+      if (startDate === endDate) {
+        return `${startStr} ${startTime} ～ ${endTime}`;
+      }
+      return `${startStr} ${startTime} ～ ${endStr} ${endTime}`;
+    }
+  };
+
   return (
     <div className="event-form-overlay" onClick={onClose}>
       <div className="event-form" onClick={e => e.stopPropagation()}>
         {/* ヘッダー */}
-        <div className="event-form-header">
-          <h2>{isEdit ? '予定を編集' : '予定を追加'}</h2>
-          <button className="event-form-close" onClick={onClose} aria-label="閉じる">×</button>
+        <div className={`event-form-header ${isViewMode ? 'view-mode' : ''}`}>
+          {!isViewMode && <h2>{isEdit ? '予定を編集' : '予定を追加'}</h2>}
+          <div className="event-form-header-right">
+            {isViewMode && (
+              <>
+                <button className="event-form-icon-btn" onClick={() => setIsViewMode(false)} title="編集">✏️</button>
+                <button className="event-form-icon-btn" onClick={handleDelete} disabled={saving} title="削除">🗑️</button>
+              </>
+            )}
+            <button className="event-form-icon-btn" onClick={onClose} title="閉じる">✖️</button>
+          </div>
         </div>
 
         {/* カラーバー */}
         <div className="event-form-color-bar" style={{ backgroundColor: displayColor }} />
 
-        {/* フォーム本体 */}
-        <div className="event-form-body">
-          {/* タイトル */}
-          <input
+        {isViewMode ? (
+          <div className="event-form-body event-form-view-body">
+            <h3 className="event-form-view-title">{title}</h3>
+            <div className="event-form-view-row">
+              <span className="event-form-view-icon">🕒</span>
+              <span className="event-form-view-text">{formatViewDateTime()}</span>
+            </div>
+            {location && (
+              <div className="event-form-view-row">
+                <span className="event-form-view-icon">📍</span>
+                <span className="event-form-view-text">{location}</span>
+              </div>
+            )}
+            {description && (
+              <div className="event-form-view-row">
+                <span className="event-form-view-icon">📝</span>
+                <span className="event-form-view-text event-form-view-desc">{description}</span>
+              </div>
+            )}
+            <div className="event-form-view-row">
+              <span className="event-form-view-icon">🗓️</span>
+              <div className="event-form-view-cal-wrap">
+                <span className="event-form-view-cal-dot" style={{ backgroundColor: displayColor }} />
+                <span className="event-form-view-text">
+                  {calendars.find(c => c.id === calendarId)?.name || ''}
+                </span>
+              </div>
+            </div>
+            {error && <div className="event-form-error">{error}</div>}
+          </div>
+        ) : (
+          <>
+            {/* フォーム本体 (編集/作成モード) */}
+            <div className="event-form-body">
+              {/* タイトル */}
+              <input
             type="text"
             className="event-form-title"
             placeholder="タイトルを追加"
@@ -316,17 +372,9 @@ export default function EventForm({
           {error && <div className="event-form-error">{error}</div>}
         </div>
 
-        {/* フッター */}
+        {/* フッター (編集モード時のみ) */}
         <div className="event-form-footer">
-          {isEdit && (
-            <button
-              className="event-form-delete-btn"
-              onClick={handleDelete}
-              disabled={saving}
-            >
-              削除
-            </button>
-          )}
+          {/* ゴミ箱はViewモードのヘッダーに移したが、必要ならここにも残せる（今回は非表示） */}
           <div className="event-form-footer-right">
             <button className="event-form-cancel-btn" onClick={onClose} disabled={saving}>
               キャンセル
@@ -336,6 +384,8 @@ export default function EventForm({
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

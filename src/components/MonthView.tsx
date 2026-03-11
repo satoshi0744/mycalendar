@@ -55,13 +55,22 @@ export default function MonthView({ currentDate, events, calendars, onDateClick,
     return grid;
   }, [year, month]);
 
-  // 日付ごとのイベントをマップ化
+  // 日付ごとのイベントをマップ化してソートする
   const eventsByDate = useMemo(() => {
     const map = new Map<string, AppEvent[]>();
     for (const event of events) {
       const key = formatDateKey(event.start);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(event);
+    }
+    // 各日のイベントを「終日が先、そのあと開始時間順」にソート
+    for (const [key, evs] of map.entries()) {
+      evs.sort((a, b) => {
+        if (a.isAllDay && !b.isAllDay) return -1;
+        if (!a.isAllDay && b.isAllDay) return 1;
+        return a.start.getTime() - b.start.getTime();
+      });
+      map.set(key, evs);
     }
     return map;
   }, [events]);
@@ -125,24 +134,18 @@ export default function MonthView({ currentDate, events, calendars, onDateClick,
                         key={i}
                         className={[
                           'month-event',
-                          event.isAllDay ? 'all-day' : '',
+                          // すべてのイベントをall-day風の背景にするため、一律でクラスを付与
+                          'all-day-style',
                           isPast ? 'past-event' : '',
                         ].filter(Boolean).join(' ')}
-                        style={event.isAllDay
-                          ? { backgroundColor: evColor }
-                          : { borderLeftColor: evColor }
-                        }
+                        style={{ backgroundColor: evColor }}
                         title={event.title}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onEventClick) onEventClick(event);
                         }}
                       >
-                        {!event.isAllDay && (
-                          <span className="month-event-time">
-                            {event.start.getHours()}:{String(event.start.getMinutes()).padStart(2, '0')}
-                          </span>
-                        )}
+                        {/* 時刻表示は削除し、タイトルのみにする */}
                         <span className="month-event-title">{event.title}</span>
                       </div>
                       );

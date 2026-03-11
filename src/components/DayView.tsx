@@ -11,6 +11,57 @@ interface Props {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
+function calculateOverlap(events: AppEvent[]) {
+  const sorted = [...events].sort((a, b) => {
+    if (a.start.getTime() !== b.start.getTime()) return a.start.getTime() - b.start.getTime();
+    return b.end.getTime() - a.end.getTime();
+  });
+
+  const layouts = new Map<string, { column: number; totalColumns: number }>();
+  let columns: AppEvent[][] = [];
+  let lastEventEnding: Date | null = null;
+  let currentCluster: AppEvent[] = [];
+
+  const packCluster = () => {
+    currentCluster.forEach(ev => {
+      layouts.set(ev.id, {
+        column: columns.findIndex(col => col.includes(ev)),
+        totalColumns: columns.length,
+      });
+    });
+  };
+
+  for (const event of sorted) {
+    if (lastEventEnding !== null && event.start.getTime() >= lastEventEnding.getTime()) {
+      packCluster();
+      columns = [];
+      currentCluster = [];
+      lastEventEnding = null;
+    }
+
+    let placed = false;
+    for (const col of columns) {
+      const lastEventInCol = col[col.length - 1];
+      if (lastEventInCol.end.getTime() <= event.start.getTime()) {
+        col.push(event);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      columns.push([event]);
+    }
+    currentCluster.push(event);
+
+    if (lastEventEnding === null || event.end.getTime() > lastEventEnding.getTime()) {
+      lastEventEnding = event.end;
+    }
+  }
+  if (currentCluster.length > 0) packCluster();
+
+  return layouts;
+}
+
 export default function DayView({ currentDate, events, calendars, onEventClick }: Props) {
   // カレンダーIDから色を引くマップ
   const colorMap = useMemo(() => {
@@ -34,6 +85,10 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
 
   const allDayEvents = todayEvents.filter(e => e.isAllDay);
   const timedEvents = todayEvents.filter(e => !e.isAllDay);
+
+  const layoutMap = useMemo(() => {
+    return calculateOverlap(timedEvents);
+  }, [timedEvents]);
 
   const formatHour = (h: number) =>
     `${String(h).padStart(2, '0')}:00`;
@@ -84,6 +139,10 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
                   const heightPx = Math.max(24, (durationMinutes / 60) * 60);
                   const topOffset = (event.start.getMinutes() / 60) * 60;
 
+                  const layout = layoutMap.get(event.id) || { column: 0, totalColumns: 1 };
+                  const leftPct = (100 / layout.totalColumns) * layout.column;
+                  const widthPct = 100 / layout.totalColumns;
+
                   return (
                     <div
                       key={i}
@@ -93,6 +152,9 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
                         backgroundColor: `${event.eventColor || colorMap.get(event.calendarId) || '#4285f4'}18`,
                         height: `${heightPx}px`,
                         top: `${topOffset}px`,
+                        left: `calc(${leftPct}% + 4px)`,
+                        width: `calc(${widthPct}% - 8px)`,
+                        right: 'auto',
                       }}
                       onClick={(e) => {
                         e.stopPropagation();

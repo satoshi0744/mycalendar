@@ -19,6 +19,57 @@ function getMondayBasedDay(d: Date): number {
 /** 月曜始まりの曜日ラベル */
 const DAY_LABELS = ['月', '火', '水', '木', '金', '土', '日'];
 
+function calculateOverlap(events: AppEvent[]) {
+  const sorted = [...events].sort((a, b) => {
+    if (a.start.getTime() !== b.start.getTime()) return a.start.getTime() - b.start.getTime();
+    return b.end.getTime() - a.end.getTime();
+  });
+
+  const layouts = new Map<string, { column: number; totalColumns: number }>();
+  let columns: AppEvent[][] = [];
+  let lastEventEnding: Date | null = null;
+  let currentCluster: AppEvent[] = [];
+
+  const packCluster = () => {
+    currentCluster.forEach(ev => {
+      layouts.set(ev.id, {
+        column: columns.findIndex(col => col.includes(ev)),
+        totalColumns: columns.length,
+      });
+    });
+  };
+
+  for (const event of sorted) {
+    if (lastEventEnding !== null && event.start.getTime() >= lastEventEnding.getTime()) {
+      packCluster();
+      columns = [];
+      currentCluster = [];
+      lastEventEnding = null;
+    }
+
+    let placed = false;
+    for (const col of columns) {
+      const lastEventInCol = col[col.length - 1];
+      if (lastEventInCol.end.getTime() <= event.start.getTime()) {
+        col.push(event);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      columns.push([event]);
+    }
+    currentCluster.push(event);
+
+    if (lastEventEnding === null || event.end.getTime() > lastEventEnding.getTime()) {
+      lastEventEnding = event.end;
+    }
+  }
+  if (currentCluster.length > 0) packCluster();
+
+  return layouts;
+}
+
 export default function WeekView({ currentDate, events, calendars, onEventClick }: Props) {
   const today = new Date();
 
@@ -63,6 +114,15 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
     }
     return map;
   }, [events, weekDates]);
+
+  // オーバーラップ計算は各日ごとに独立して行う
+  const layoutsByDay = useMemo(() => {
+    const map = new Map<number, Map<string, { column: number; totalColumns: number }>>();
+    for (const [di, dayEvents] of timedEventsByDay.entries()) {
+      map.set(di, calculateOverlap(dayEvents));
+    }
+    return map;
+  }, [timedEventsByDay]);
 
   const isToday = (d: Date) =>
     d.getDate() === today.getDate() &&
@@ -140,6 +200,11 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                     const heightPx = Math.max(20, (durationMinutes / 60) * 48);
                     const topOffset = (event.start.getMinutes() / 60) * 48;
 
+                    const layoutMap = layoutsByDay.get(di);
+                    const layout = layoutMap?.get(event.id) || { column: 0, totalColumns: 1 };
+                    const leftPct = (100 / layout.totalColumns) * layout.column;
+                    const widthPct = 100 / layout.totalColumns;
+
                     return (
                       <div
                         key={i}
@@ -149,6 +214,9 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                           backgroundColor: `${event.eventColor || colorMap.get(event.calendarId) || '#4285f4'}18`,
                           height: `${heightPx}px`,
                           top: `${topOffset}px`,
+                          left: `calc(${leftPct}% + 1px)`,
+                          width: `calc(${widthPct}% - 2px)`,
+                          right: 'auto',
                         }}
                         title={`${event.title}\n${event.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} - ${event.end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`}
                         onClick={(e) => {

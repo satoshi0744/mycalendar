@@ -41,6 +41,16 @@
   padding: 16px 20px 8px;
 }
 
+.event-form-header.view-mode {
+  justify-content: flex-end; /* タイトルがないので右寄せ */
+}
+
+.event-form-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .event-form-header h2 {
   font-size: 18px;
   font-weight: 600;
@@ -48,19 +58,29 @@
   margin: 0;
 }
 
-.event-form-close {
+.event-form-icon-btn {
   background: none;
   border: none;
-  font-size: 22px;
+  font-size: 18px;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 8px;
   border-radius: 50%;
   transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
 }
 
-.event-form-close:hover {
+.event-form-icon-btn:hover {
   background: var(--hover-bg, rgba(0,0,0,0.06));
+}
+
+.event-form-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* カラーバー */
@@ -76,6 +96,59 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* 閲覧モード固有のスタイル */
+.event-form-view-body {
+  gap: 16px;
+  padding: 16px 24px;
+}
+
+.event-form-view-title {
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.event-form-view-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.event-form-view-icon {
+  font-size: 18px;
+  margin-top: 2px;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  width: 24px;
+  text-align: center;
+}
+
+.event-form-view-text {
+  font-size: 15px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.event-form-view-desc {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.event-form-view-cal-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-form-view-cal-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .event-form-title {

@@ -90,7 +90,7 @@ body {
 }
 
 /* --- Buttons --- */
-.menu-btn, .nav-btn, .refresh-btn {
+.menu-btn, .nav-btn, .refresh-btn, .search-btn {
   width: 36px;
   height: 36px;
   border: none;
@@ -105,7 +105,7 @@ body {
   transition: background 0.15s ease;
 }
 
-.menu-btn:hover, .nav-btn:hover, .refresh-btn:hover {
+.menu-btn:hover, .nav-btn:hover, .refresh-btn:hover, .search-btn:hover {
   background: var(--surface-hover);
 }
 
@@ -359,7 +359,7 @@ body {
     gap: 4px;
   }
 
-  .menu-btn, .nav-btn, .refresh-btn {
+  .menu-btn, .nav-btn, .refresh-btn, .search-btn {
     width: 32px;
     height: 32px;
     font-size: 16px;

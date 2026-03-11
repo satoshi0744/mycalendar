@@ -9,6 +9,7 @@ import DayView from './components/DayView';
 import ViewSwitcher from './components/ViewSwitcher';
 import CalendarList from './components/CalendarList';
 import EventForm from './components/EventForm';
+import SearchOverlay from './components/SearchOverlay';
 import './App.css';
 
 // Google Cloud Console で取得したクライアントID
@@ -18,6 +19,7 @@ function App() {
   const [authState, setAuthState] = useState<AuthState>(getAuthState());
   const [authLoading, setAuthLoading] = useState(true); // 認証復元中のローディング
   const [sidebarOpen, setSidebarOpen] = useState(false); // サイドバー開閉（統一）
+  const [showSearch, setShowSearch] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
   const [eventFormDate, setEventFormDate] = useState<Date | undefined>(undefined);
@@ -184,6 +186,9 @@ function App() {
         </div>
         <div className="header-right">
           <ViewSwitcher viewMode={viewMode} onChange={setViewMode} />
+          <button className="search-btn" onClick={() => setShowSearch(true)} aria-label="検索" title="予定を検索">
+            🔍
+          </button>
           <button className="refresh-btn" onClick={refresh} aria-label="更新" title="予定を更新">
             ↻
           </button>
@@ -247,6 +252,15 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* 検索オーバーレイ */}
+      {showSearch && (
+        <SearchOverlay
+          calendars={calendars}
+          onClose={() => setShowSearch(false)}
+          onEventClick={openEditEvent}
+        />
+      )}
 
       {/* FAB: 予定を追加 */}
       <button

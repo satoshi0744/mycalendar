@@ -136,6 +136,72 @@ async function fetchCalendarEvents(
 }
 
 /**
+ * キーワードで過去/未来のイベントを全カレンダーから検索する。
+ *
+ * @param calendarIds 検索対象のカレンダーID配列
+ * @param query 検索キーワード
+ */
+export async function searchEvents(
+  calendarIds: string[],
+  query: string,
+): Promise<AppEvent[]> {
+  const promises = calendarIds.map(id =>
+    searchCalendarEvents(id, query)
+  );
+
+  const results = await Promise.allSettled(promises);
+  const allEvents: AppEvent[] = [];
+
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      allEvents.push(...result.value);
+    } else {
+      console.warn('Calendar search error:', result.reason);
+    }
+  }
+
+  // 全カレンダーの検索結果を合わせて開始日時の降順にソート（新しいものが上）
+  allEvents.sort((a, b) => b.start.getTime() - a.start.getTime());
+
+  return allEvents;
+}
+
+/**
+ * 単一カレンダーからキーワード検索でイベントを取得する。
+ */
+async function searchCalendarEvents(
+  calendarId: string,
+  query: string,
+): Promise<AppEvent[]> {
+  const events: AppEvent[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const params = new URLSearchParams({
+      q: query,
+      maxResults: '500', // 一度の取得件数を制限
+      singleEvents: 'true',
+      orderBy: 'startTime', // start time ascending (global sort handled in caller)
+      showDeleted: 'false',
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+
+    const encodedCalId = encodeURIComponent(calendarId);
+    const res = await authFetch(`${BASE_URL}/calendars/${encodedCalId}/events?${params}`);
+    const data = await res.json();
+
+    for (const item of data.items || []) {
+      const event = convertApiEvent(item, calendarId);
+      if (event) events.push(event);
+    }
+
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return events;
+}
+
+/**
  * 新規イベントを追加する。
  */
 export async function createEvent(
