@@ -45,14 +45,27 @@ function App() {
     const unsubscribe = onAuthStateChange((state) => {
       setAuthState(state);
       setAuthLoading(false); // 認証状態が確定したらローディング終了
+      if (state.isSignedIn) {
+        refresh(); // ログイン完了（または復元完了）時にデータを取得
+      }
     });
     // 5秒経っても認証状態が来なければローディング終了（タイムアウト）
     const timeout = setTimeout(() => setAuthLoading(false), 5000);
+
+    // スマホ対応: バックグラウンドから復帰した時に自動で最新化する
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && getAuthState().isSignedIn) {
+        refresh();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       unsubscribe();
       clearTimeout(timeout);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [refresh]);
 
   // ビューに表示するイベント（非表示カレンダーを除外）
   const visibleCalendarIds = new Set(

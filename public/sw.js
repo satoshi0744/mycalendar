@@ -1,7 +1,7 @@
 // MyCalendar Service Worker
 // キャッシュ戦略: App Shell（HTML/CSS/JS）はキャッシュ優先、API呼び出しはネットワーク優先
 
-const CACHE_NAME = 'mycalendar-v3';
+const CACHE_NAME = 'mycalendar-v4';
 const APP_SHELL = [
   './',
   './index.html',

@@ -193,14 +193,22 @@ export function signIn(): void {
 /**
  * トークンの期限切れ時にバックグラウンドで再取得する。
  * ユーザーには何も表示されない（同意済みの場合）。
+ * 失敗時（ITP等でブロック時）は即座にログアウト状態に遷移する。
  */
 export function silentRefresh(): void {
   if (!tokenClient) return;
   const hint = getSavedLoginHint();
-  tokenClient.requestAccessToken({
-    prompt: '',
-    ...(hint ? { login_hint: hint } : {}),
-  });
+  
+  // prompt: 'none' でバックグラウンド取得を強制（失敗時は即エラーが返る）
+  try {
+    tokenClient.requestAccessToken({
+      prompt: 'none',
+      ...(hint ? { login_hint: hint } : {}),
+    });
+  } catch (e) {
+    console.error('silentRefresh failed', e);
+    signOut(); // 失敗時は直ちにログアウト状態に戻す（白画面防止）
+  }
 }
 
 /**
@@ -263,6 +271,10 @@ export function getAuthState(): AuthState {
 function handleTokenResponse(response: TokenResponse): void {
   if (response.error) {
     console.error('Token error:', response.error);
+    if (!accessToken) {
+       // 未ログイン時または復元直後のsilentRefresh失敗時
+       signOut(); // 早期に確実なログアウト状態へ遷移
+    }
     return;
   }
   accessToken = response.access_token;
