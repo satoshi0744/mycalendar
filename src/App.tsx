@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { AuthState, AppEvent } from './data/types';
 import { initAuth, signIn, signOut, onAuthStateChange, getAuthState } from './auth/GoogleAuth';
 import { useCalendarData } from './hooks/useCalendarData';
@@ -139,6 +139,36 @@ function App() {
   const fallbackCalendarId = writableVisibleCalendars[0]?.id;
   const initialCalendarId = defaultCalendarId || fallbackCalendarId;
 
+  // スワイプ操作のステート（refで状態管理して再レンダリングを防ぐ）
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const distance = touchStartX.current - touchEndX.current;
+    
+    // 50px以上のスワイプを検知
+    if (distance > 50) {
+      // 左スワイプ（次へ）
+      navigate(1);
+    } else if (distance < -50) {
+      // 右スワイプ（前へ）
+      navigate(-1);
+    }
+    
+    // リセット
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
+
   // 認証復元中のローディング画面
   if (authLoading && !authState.isSignedIn) {
     return (
@@ -228,7 +258,12 @@ function App() {
         )}
 
         {/* カレンダービュー */}
-        <main className="calendar-main">
+        <main
+          className="calendar-main"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           {loading && <div className="loading-bar" />}
           {viewMode === 'year' && (
             <YearView

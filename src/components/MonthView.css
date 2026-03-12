@@ -130,6 +130,13 @@
   opacity: 0.65;
 }
 
+@media (max-width: 768px) {
+  /* スマホ版では過去イベントを薄くしない（文字が小さく見えなくなるため） */
+  .month-event.past-event {
+    opacity: 1;
+  }
+}
+
 .month-event-title {
   overflow: hidden;
   text-overflow: ellipsis;
