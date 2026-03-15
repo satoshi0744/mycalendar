@@ -218,10 +218,7 @@ export function silentRefresh(): void {
     });
   } catch (e) {
     console.error('silentRefresh: request error', e);
-    // すでにトークンが有効なら即サインアウトせず、ネットワークエラーの可能性も考慮
-    if (!isAuthenticated()) {
-      signOut();
-    }
+    // ループ防止：失敗しても即座にsignOutせず、自然にログイン画面へ誘導
   }
 }
 
@@ -285,10 +282,6 @@ export function getAuthState(): AuthState {
 function handleTokenResponse(response: TokenResponse): void {
   if (response.error) {
     console.error('Token error:', response.error);
-    if (!accessToken) {
-       // 未ログイン時または復元直後のsilentRefresh失敗時
-       signOut(); // 早期に確実なログアウト状態へ遷移
-    }
     return;
   }
   accessToken = response.access_token;
