@@ -124,7 +124,7 @@ function clearSession(): void {
 /**
  * 保存されたlogin_hintを取得する。
  */
-function getSavedLoginHint(): string | null {
+export function getSavedLoginHint(): string | null {
   try {
     return localStorage.getItem(STORAGE_KEY_HINT);
   } catch {

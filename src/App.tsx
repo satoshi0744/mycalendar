@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { AuthState, AppEvent } from './data/types';
-import { initAuth, signIn, signOut, onAuthStateChange, getAuthState } from './auth/GoogleAuth';
+import { initAuth, signIn, signOut, onAuthStateChange, getAuthState, getSavedLoginHint } from './auth/GoogleAuth';
 import { useCalendarData } from './hooks/useCalendarData';
 import YearView from './components/YearView';
 import MonthView from './components/MonthView';
@@ -54,8 +54,14 @@ function App() {
 
     // スマホ対応: バックグラウンドから復帰した時に自動で最新化する
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && getAuthState().isSignedIn) {
-        refresh();
+      if (document.visibilityState === 'visible') {
+        const state = getAuthState();
+        if (state.isSignedIn) {
+          refresh();
+        } else if (import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+          // トークンが切れている場合はサイレント更新を試みる
+          initAuth(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -184,6 +190,8 @@ function App() {
 
   // 未認証の場合はログイン画面
   if (!authState.isSignedIn) {
+    const loginHint = getSavedLoginHint();
+    
     return (
       <div className="login-screen">
         <div className="login-card">
@@ -191,16 +199,40 @@ function App() {
             <span className="login-icon-day">{new Date().getDate()}</span>
           </div>
           <h1>MyCalendar</h1>
-          <p>Googleカレンダーのビューアアプリ</p>
-          <p className="login-subtitle">過去のアーカイブ予定もシームレスに表示</p>
+          
+          {loginHint ? (
+            <>
+              <p className="login-expired-msg">セッションの期限が切れました</p>
+              <p className="login-subtitle">続けて利用するには、再度ログインしてください</p>
+            </>
+          ) : (
+            <>
+              <p>Googleカレンダーのビューアアプリ</p>
+              <p className="login-subtitle">過去のアーカイブ予定もシームレスに表示</p>
+            </>
+          )}
+
           {CLIENT_ID ? (
             <button className="login-btn" onClick={signIn}>
-              Googleでログイン
+              {loginHint ? (
+                <span className="login-hint-btn">
+                  <span className="login-hint-email">{loginHint}</span>
+                  <span className="login-hint-label">としてログイン</span>
+                </span>
+              ) : (
+                'Googleでログイン'
+              )}
             </button>
           ) : (
             <div className="login-error">
               <code>.env</code> に <code>VITE_GOOGLE_CLIENT_ID</code> を設定してください
             </div>
+          )}
+          
+          {loginHint && (
+            <button className="login-secondary-btn" onClick={signIn}>
+              別のアカウントを使用
+            </button>
           )}
         </div>
       </div>

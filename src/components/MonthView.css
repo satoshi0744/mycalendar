@@ -17,8 +17,8 @@
 
 .month-header-cell {
   text-align: center;
-  padding: 8px 0;
-  font-size: 11px;
+  padding: 10px 0;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -83,13 +83,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  font-size: 13px;
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
   border-radius: 50%;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .month-date.today-circle {
@@ -110,15 +110,16 @@
   align-items: center;
   gap: 4px;
   border-left: none;
-  border-radius: 3px;
-  padding: 2px 6px;
-  font-size: 11px;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
   line-height: 1.4;
   overflow: hidden;
   cursor: pointer;
   color: #fff;
   font-weight: 500;
   transition: opacity 0.1s;
+  margin-bottom: 1px;
 }
 
 .month-event:hover {
@@ -131,9 +132,40 @@
 }
 
 @media (max-width: 768px) {
+  /* セル内の余白を最小限に */
+  .month-cell {
+    padding: 1px;
+  }
+
+  .month-date {
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+    margin-bottom: 1px;
+  }
+
+  /* イベントタイルの余白と文字間隔を極限まで詰める */
+  .month-event {
+    padding: 1px 2px;
+    font-size: 11px;
+    gap: 0;
+    margin-bottom: 0px;
+    letter-spacing: -0.05em; /* 文字間を詰めて表示文字数を稼ぐ */
+    border-radius: 2px;
+  }
+
+  .month-event-title {
+    font-weight: 400;
+  }
+
   /* スマホ版では過去イベントを薄くしない（文字が小さく見えなくなるため） */
   .month-event.past-event {
     opacity: 1;
+  }
+
+  .month-event-more {
+    font-size: 9px;
+    padding: 0 2px;
   }
 }
 

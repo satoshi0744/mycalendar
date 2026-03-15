@@ -108,7 +108,8 @@ export default function MonthView({ currentDate, events, calendars, onDateClick,
             {week.map((date, di) => {
               const key = formatDateKey(date);
               const dayEvents = eventsByDate.get(key) || [];
-              const maxDisplay = 3;
+              const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+              const maxDisplay = isMobile ? 4 : 3;
               const isPast = isBeforeDay(date, today);
               const isTodayCell = isSameDay(date, today);
 

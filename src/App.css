@@ -323,6 +323,38 @@ body {
   transform: translateY(-1px);
 }
 
+.login-expired-msg {
+  font-size: 16px !important;
+  color: var(--error) !important;
+  font-weight: 600;
+  margin-bottom: 4px !important;
+}
+
+.login-hint-btn {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.login-hint-email {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.login-hint-label {
+  font-size: 16px;
+}
+
+.login-secondary-btn {
+  margin-top: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .login-error {
   padding: 16px;
   background: rgba(234, 67, 53, 0.08);

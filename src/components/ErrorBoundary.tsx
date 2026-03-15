@@ -27,24 +27,37 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
+      const isAuthError = this.state.error?.message?.includes('authenticated') || 
+                          this.state.error?.message?.includes('token');
+
       return (
         <div className="error-boundary-screen">
           <div className="error-boundary-card">
-            <div className="error-boundary-icon">⚠️</div>
-            <h1>問題が発生しました</h1>
-            <p>アプリの描画中に予期せぬエラーが起きました。</p>
+            <div className="error-boundary-icon">{isAuthError ? '🔑' : '⚠️'}</div>
+            <h1>{isAuthError ? 'セッションが切れました' : '問題が発生しました'}</h1>
+            <p>
+              {isAuthError 
+                ? '一定時間が経過したため、自動的に接続が解除されました。' 
+                : 'アプリの描画中に予期せぬエラーが起きました。'}
+            </p>
             <p className="error-boundary-msg">{this.state.error?.message}</p>
             <p className="error-boundary-hint">
-              「設定をリセット」を押すと、端末に保存された設定やキャッシュをクリアし、正常な状態でアプリを再起動します。予定データが消えることはありません。
+              {isAuthError
+                ? '「再起動してログイン」を押すと、ログイン画面に戻ります。'
+                : '「設定をリセット」を押すと、初期状態に戻して再起動します。予定データは消えません。'}
             </p>
             <button
               className="error-boundary-btn"
               onClick={() => {
-                localStorage.clear();
+                if (isAuthError) {
+                  localStorage.removeItem('__mycal_token'); // トークンをクリアして確実にログインへ誘導
+                } else {
+                  localStorage.clear();
+                }
                 window.location.reload();
               }}
             >
-              設定をリセットして再起動
+              {isAuthError ? '再起動してログイン' : '設定をリセットして再起動'}
             </button>
           </div>
         </div>
