@@ -131,6 +131,20 @@
   opacity: 0.65;
 }
 
+.month-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.month-event-more {
+  font-size: 10px;
+  color: var(--text-secondary);
+  padding: 1px 4px;
+  cursor: pointer;
+}
+
 @media (max-width: 768px) {
   /* セル内の余白を最小限に */
   .month-cell {
@@ -156,7 +170,7 @@
 
   .month-event-title {
     font-weight: 400;
-    text-overflow: clip; /* 三点リーダー(...)を廃止し、ギリギリまで表示 */
+    text-overflow: clip !important; /* 三点リーダー(...)を確実に廃止 */
   }
 
   /* スマホ版では過去イベントを薄くしない（文字が小さく見えなくなるため） */
@@ -174,18 +188,4 @@
     line-height: 1;
     margin-top: -1px; /* 少し上に詰める */
   }
-}
-
-.month-event-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: inherit;
-}
-
-.month-event-more {
-  font-size: 10px;
-  color: var(--text-secondary);
-  padding: 1px 4px;
-  cursor: pointer;
 }
