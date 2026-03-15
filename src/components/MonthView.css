@@ -146,16 +146,17 @@
 
   /* イベントタイルの余白と文字間隔を極限まで詰める */
   .month-event {
-    padding: 1px 2px;
+    padding: 1px 1px;
     font-size: 11px;
     gap: 0;
     margin-bottom: 0px;
-    letter-spacing: -0.05em; /* 文字間を詰めて表示文字数を稼ぐ */
+    letter-spacing: -0.07em; /* さらに文字間を詰める */
     border-radius: 2px;
   }
 
   .month-event-title {
     font-weight: 400;
+    text-overflow: clip; /* 三点リーダー(...)を廃止し、ギリギリまで表示 */
   }
 
   /* スマホ版では過去イベントを薄くしない（文字が小さく見えなくなるため） */
