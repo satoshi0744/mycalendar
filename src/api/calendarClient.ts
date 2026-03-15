@@ -222,8 +222,12 @@ export async function createEvent(
   };
 
   if (event.isAllDay) {
+    // Google Calendar API: All-day events need 'date' as YYYY-MM-DD.
+    // Also, the 'end' date is EXCLUSIVE, so it must be 1 day after the actual end day.
     body.start = { date: formatDate(event.start) };
-    body.end = { date: formatDate(event.end) };
+    const exclusiveEnd = new Date(event.end.getTime());
+    exclusiveEnd.setDate(exclusiveEnd.getDate() + 1);
+    body.end = { date: formatDate(exclusiveEnd) };
   } else {
     body.start = { dateTime: event.start.toISOString() };
     body.end = { dateTime: event.end.toISOString() };
@@ -262,7 +266,9 @@ export async function updateEvent(
   if (updates.start && updates.end) {
     if (updates.isAllDay) {
       body.start = { date: formatDate(updates.start) };
-      body.end = { date: formatDate(updates.end) };
+      const exclusiveEnd = new Date(updates.end.getTime());
+      exclusiveEnd.setDate(exclusiveEnd.getDate() + 1);
+      body.end = { date: formatDate(exclusiveEnd) };
     } else {
       body.start = { dateTime: updates.start.toISOString() };
       body.end = { dateTime: updates.end.toISOString() };

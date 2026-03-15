@@ -253,7 +253,14 @@ export default function EventForm({
             <input
               type="checkbox"
               checked={isAllDay}
-              onChange={e => setIsAllDay(e.target.checked)}
+              onChange={e => {
+                const checked = e.target.checked;
+                setIsAllDay(checked);
+                // 終日を外した時、終了日が開始日と同じになるように調整
+                if (!checked) {
+                  setEndDate(startDate);
+                }
+              }}
             />
             <span>終日</span>
           </label>
@@ -274,7 +281,14 @@ export default function EventForm({
                   type="date"
                   className="event-form-date-native"
                   value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
+                  onChange={e => {
+                    const newStart = e.target.value;
+                    setStartDate(newStart);
+                    // 開始日が終了日より後にならないよう自動調整
+                    if (new Date(newStart) > new Date(endDate)) {
+                      setEndDate(newStart);
+                    }
+                  }}
                   tabIndex={0}
                 />
               </div>

@@ -21,11 +21,12 @@
   background: var(--surface);
   border-radius: 16px;
   box-shadow: var(--shadow-lg, 0 16px 48px rgba(0,0,0,0.2));
-  width: 90%;
+  width: 95%; /* 90%から95%に広げて画面を有効活用 */
   max-width: 480px;
-  max-height: 90vh;
+  max-height: 95vh;
   overflow-y: auto;
   animation: slideUp 0.2s ease;
+  padding-bottom: env(safe-area-inset-bottom); /* iPhoneのノッチ対応 */
 }
 
 @keyframes slideUp {
@@ -374,15 +375,18 @@
 .event-form-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px 16px;
+  justify-content: flex-end;
+  padding: 12px 16px 16px;
   border-top: 1px solid var(--border);
+  flex-wrap: wrap; /* ボタンが入りきらない場合に折り返す */
+  gap: 8px;
 }
 
 .event-form-footer-right {
   display: flex;
   gap: 8px;
-  margin-left: auto;
+  width: 100%; /* スマホでボタンを横に並べやすく、かつ収まりを良くする */
+  justify-content: flex-end;
 }
 
 .event-form-cancel-btn {
