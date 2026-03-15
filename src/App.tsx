@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { AuthState, AppEvent } from './data/types';
-import { initAuth, signIn, signOut, onAuthStateChange, getAuthState, getSavedLoginHint } from './auth/GoogleAuth';
+import { initAuth, signIn, signOut, onAuthStateChange, getAuthState, getSavedLoginHint, silentRefresh } from './auth/GoogleAuth';
 import { useCalendarData } from './hooks/useCalendarData';
 import YearView from './components/YearView';
 import MonthView from './components/MonthView';
@@ -53,23 +53,27 @@ function App() {
     const timeout = setTimeout(() => setAuthLoading(false), 5000);
 
     // スマホ対応: バックグラウンドから復帰した時に自動で最新化する
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+    const handleResume = () => {
+      if (document.visibilityState === 'visible' || document.hasFocus()) {
+        console.log('App resumed: checking auth and refreshing data...');
         const state = getAuthState();
         if (state.isSignedIn) {
           refresh();
         } else if (import.meta.env.VITE_GOOGLE_CLIENT_ID) {
           // トークンが切れている場合はサイレント更新を試みる
-          initAuth(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+          silentRefresh();
         }
       }
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('focus', handleResume);
 
     return () => {
       unsubscribe();
       clearTimeout(timeout);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('focus', handleResume);
     };
   }, [refresh]);
 

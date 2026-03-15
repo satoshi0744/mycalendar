@@ -196,18 +196,32 @@ export function signIn(): void {
  * 失敗時（ITP等でブロック時）は即座にログアウト状態に遷移する。
  */
 export function silentRefresh(): void {
-  if (!tokenClient) return;
+  if (!tokenClient) {
+    console.warn('silentRefresh: tokenClient not initialized. Attempting initialization...');
+    // まだ初期化されていない場合は、保存されたクライアントIDがあれば初期化を試みる
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (clientId) {
+      initAuth(clientId);
+      return; // initAuthの中でリフレッシュが走るのを待つ
+    }
+    return;
+  }
+
   const hint = getSavedLoginHint();
   
   // prompt: 'none' でバックグラウンド取得を強制（失敗時は即エラーが返る）
   try {
+    console.log('Attempting silent refresh for:', hint);
     tokenClient.requestAccessToken({
       prompt: 'none',
       ...(hint ? { login_hint: hint } : {}),
     });
   } catch (e) {
-    console.error('silentRefresh failed', e);
-    signOut(); // 失敗時は直ちにログアウト状態に戻す（白画面防止）
+    console.error('silentRefresh: request error', e);
+    // すでにトークンが有効なら即サインアウトせず、ネットワークエラーの可能性も考慮
+    if (!isAuthenticated()) {
+      signOut();
+    }
   }
 }
 
