@@ -152,7 +152,7 @@
   }
 
   .month-date {
-    width: 18px; /* 24pxから縮小してスペースを確保 */
+    width: 18px;
     height: 18px;
     font-size: 11px;
     margin-bottom: 0px;
@@ -160,33 +160,38 @@
 
   /* イベントタイルの余白と文字間隔を極限まで詰める */
   .month-event {
-    padding: 0px 1px; /* 上下パディングを0に */
-    font-size: 10.5px; /* わずかに縮小 */
+    padding: 0px 1px;
+    font-size: 10.5px;
     gap: 0;
     margin-bottom: 0px;
-    letter-spacing: -0.07em; /* さらに文字間を詰める */
+    letter-spacing: -0.07em;
     border-radius: 2px;
   }
 
   .month-event-title {
     font-weight: 400;
-    text-overflow: clip !important; /* 三点リーダー(...)を確実に廃止 */
+    text-overflow: clip !important;
   }
 
-  /* スマホ版では過去イベントを薄くしない（文字が小さく見えなくなるため） */
+  /* スマホ版では過去イベントを薄くしない（!importantで確実に上書き） */
   .month-event.past-event {
-    opacity: 1;
+    opacity: 1 !important;
+  }
+
+  /* 過去のマス目もスマホでは薄くしない */
+  .month-cell.past {
+    opacity: 1 !important;
   }
 
   .month-events {
-    gap: 0px; /* 隙間をなくして高さを稼ぐ */
+    gap: 0px;
   }
 
   .month-event-more {
     font-size: 9px;
     padding: 0 2px;
     line-height: 1;
-    margin-top: -1px; /* 少し上に詰める */
+    margin-top: -1px;
   }
 }
 

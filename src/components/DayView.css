@@ -102,9 +102,9 @@
   opacity: 0.6;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (pointer: coarse) {
   .day-event.past-event {
-    opacity: 1;
+    opacity: 1 !important;
   }
 }
 
