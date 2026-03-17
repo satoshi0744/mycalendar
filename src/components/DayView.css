@@ -98,6 +98,16 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
+.day-event.past-event {
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .day-event.past-event {
+    opacity: 1;
+  }
+}
+
 .day-event-time {
   font-size: 11px;
   font-weight: 600;

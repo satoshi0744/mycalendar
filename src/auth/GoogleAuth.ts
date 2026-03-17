@@ -60,6 +60,14 @@ let tokenExpiresAt: number = 0;
 let authStateListeners: Array<(state: AuthState) => void> = [];
 let userInfo: { name: string | null; email: string | null } = { name: null, email: null };
 
+// --- ロックと再認証状態の管理 ---
+let refreshPromise: Promise<boolean> | null = null;
+let refreshResolver: ((success: boolean) => void) | null = null;
+
+function clearRefreshState(): void {
+  refreshPromise = null;
+  refreshResolver = null;
+}
 
 /**
  * sessionStorageからトークンを復元する。
@@ -156,6 +164,18 @@ export function initAuth(clientId: string): void {
 
   const hint = getSavedLoginHint();
 
+  // Google SDKがロードされていない（オフラインなど）場合は初期化できない
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+    console.warn('Google Identity Services SDK not loaded (offline?).');
+    return;
+  }
+
+  // Google SDKがロードされていない（オフラインなど）場合は初期化できない
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+    console.warn('Google Identity Services SDK not loaded (offline?).');
+    return;
+  }
+
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope: SCOPES,
@@ -169,7 +189,7 @@ export function initAuth(clientId: string): void {
   } else if (hint) {
     // トークン期限切れだがlogin_hintがある → バックグラウンドで自動再認証
     // これによりログイン画面をスキップできる
-    silentRefresh();
+    silentRefresh().catch(() => {});
   }
 }
 
@@ -178,13 +198,20 @@ export function initAuth(clientId: string): void {
  * 保存されたアカウントがあればアカウント選択をスキップする。
  */
 export function signIn(): void {
+  // 未初期化の場合はその場で初期化を試みる
   if (!tokenClient) {
-    console.error('Auth not initialized. Call initAuth() first.');
-    return;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (clientId) {
+      initAuth(clientId);
+    } else {
+      console.error('Auth not initialized. Cannot sign in.');
+      return;
+    }
   }
+
   const hint = getSavedLoginHint();
   // prompt '' + login_hint でアカウント選択をスキップ
-  tokenClient.requestAccessToken({
+  tokenClient!.requestAccessToken({
     prompt: '',
     ...(hint ? { login_hint: hint } : {}),
   });
@@ -194,39 +221,67 @@ export function signIn(): void {
  * トークンの期限切れ時にバックグラウンドで再取得する。
  * ユーザーには何も表示されない（同意済みの場合）。
  * 失敗時（ITP等でブロック時）は即座にログアウト状態に遷移する。
+ * @returns 成功したかどうかを示すPromise
  */
-export function silentRefresh(): void {
+export function silentRefresh(): Promise<boolean> {
+  if (refreshPromise) {
+    // すでにリフレッシュ中なら、その完了を待つ（競合防止）
+    return refreshPromise;
+  }
+
   if (!tokenClient) {
     console.warn('silentRefresh: tokenClient not initialized. Attempting initialization...');
     // まだ初期化されていない場合は、保存されたクライアントIDがあれば初期化を試みる
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (clientId) {
       initAuth(clientId);
-      return; // initAuthの中でリフレッシュが走るのを待つ
+      if (refreshPromise) return refreshPromise; // initAuth内で発火した場合はそれを返す
     }
-    return;
+    return Promise.resolve(false);
   }
 
   const hint = getSavedLoginHint();
   
-  // prompt: 'none' でバックグラウンド取得を強制（失敗時は即エラーが返る）
-  try {
-    console.log('Attempting silent refresh for:', hint);
-    tokenClient.requestAccessToken({
-      prompt: 'none',
-      ...(hint ? { login_hint: hint } : {}),
-    });
-  } catch (e) {
-    console.error('silentRefresh: request error', e);
-    // ループ防止：失敗しても即座にsignOutせず、自然にログイン画面へ誘導
-  }
+  refreshPromise = new Promise<boolean>((resolve) => {
+    refreshResolver = resolve;
+
+    // 10秒経ってもコールバックが来ない場合のフェイルセーフ
+    const timeout = setTimeout(() => {
+      console.warn('silentRefresh: callback timeout');
+      if (refreshResolver) {
+        refreshResolver(false);
+        clearRefreshState();
+      }
+    }, 10000);
+
+    const origResolver = refreshResolver;
+    refreshResolver = (success: boolean) => {
+      clearTimeout(timeout);
+      origResolver(success);
+      clearRefreshState();
+    };
+
+    // prompt: 'none' でバックグラウンド取得を強制（失敗時は即エラーが返る）
+    try {
+      console.log('Attempting silent refresh for:', hint);
+      tokenClient!.requestAccessToken({
+        prompt: 'none',
+        ...(hint ? { login_hint: hint } : {}),
+      });
+    } catch (e) {
+      console.error('silentRefresh: request error', e);
+      if (refreshResolver) refreshResolver(false);
+    }
+  });
+
+  return refreshPromise;
 }
 
 /**
  * ログアウトする（トークンを破棄）。
  */
 export function signOut(): void {
-  if (accessToken) {
+  if (accessToken && typeof google !== 'undefined' && google.accounts?.oauth2) {
     google.accounts.oauth2.revoke(accessToken);
   }
   accessToken = null;
@@ -282,8 +337,12 @@ export function getAuthState(): AuthState {
 function handleTokenResponse(response: TokenResponse): void {
   if (response.error) {
     console.error('Token error:', response.error);
+    if (refreshResolver) refreshResolver(false);
     return;
   }
+  
+  if (refreshResolver) refreshResolver(true);
+
   accessToken = response.access_token;
   tokenExpiresAt = Date.now() + response.expires_in * 1000;
   

@@ -6,14 +6,18 @@
  */
 
 import type { AppEvent, CalendarInfo } from '../data/types';
-import { getAccessToken } from '../auth/GoogleAuth';
+import { getAccessToken, silentRefresh } from '../auth/GoogleAuth';
 
 const BASE_URL = 'https://www.googleapis.com/calendar/v3';
 
 /**
  * 認証ヘッダー付きfetchラッパー
  */
-async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+async function authFetch(
+  url: string,
+  options: RequestInit = {},
+  isRetry: boolean = false
+): Promise<Response> {
   const token = getAccessToken();
   if (!token) {
     throw new Error('Not authenticated');
@@ -29,6 +33,13 @@ async function authFetch(url: string, options: RequestInit = {}): Promise<Respon
   });
 
   if (!res.ok) {
+    if (res.status === 401 && !isRetry) {
+      console.log('Calendar API 401: Attempting silent refresh...');
+      const success = await silentRefresh();
+      if (success) {
+        return authFetch(url, options, true);
+      }
+    }
     const errBody = await res.text();
     throw new Error(`Calendar API error (${res.status}): ${errBody}`);
   }

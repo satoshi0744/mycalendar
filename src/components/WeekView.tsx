@@ -9,6 +9,13 @@ interface Props {
   onEventClick?: (event: AppEvent) => void;
 }
 
+/** 日付aがbより前の日か */
+function isBeforeDay(a: Date, b: Date): boolean {
+  const aDate = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const bDate = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return aDate.getTime() < bDate.getTime();
+}
+
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 /** 月曜始まりの曜日インデックス (月=0, 火=1, ... 日=6) */
@@ -153,7 +160,7 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                   .map((event, i) => (
                     <div
                       key={i}
-                      className="week-allday-event"
+                      className={`week-allday-event ${isBeforeDay(event.start, today) ? 'past-event' : ''}`}
                       style={{ backgroundColor: event.eventColor || colorMap.get(event.calendarId) || '#4285f4' }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -208,7 +215,7 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                     return (
                       <div
                         key={i}
-                        className="week-event"
+                        className={`week-event ${isBeforeDay(event.start, today) ? 'past-event' : ''}`}
                         style={{
                           borderLeftColor: event.eventColor || colorMap.get(event.calendarId) || '#4285f4',
                           backgroundColor: `${event.eventColor || colorMap.get(event.calendarId) || '#4285f4'}18`,

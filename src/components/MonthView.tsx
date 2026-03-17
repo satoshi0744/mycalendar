@@ -6,8 +6,10 @@ interface Props {
   currentDate: Date;
   events: AppEvent[];
   calendars: CalendarInfo[];
+  error?: string | null;
   onDateClick: (date: Date) => void;
   onEventClick?: (event: AppEvent) => void;
+  onRefresh?: () => void;
 }
 
 /** 月曜始まりの曜日インデックス (月=0, 火=1, ... 日=6) */
@@ -29,7 +31,7 @@ function isBeforeDay(a: Date, b: Date): boolean {
   return aDate.getTime() < bDate.getTime();
 }
 
-export default function MonthView({ currentDate, events, calendars, onDateClick, onEventClick }: Props) {
+export default function MonthView({ currentDate, events, calendars, error, onDateClick, onEventClick, onRefresh }: Props) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const today = new Date();
@@ -103,6 +105,16 @@ export default function MonthView({ currentDate, events, calendars, onDateClick,
 
       {/* 日付グリッド */}
       <div className="month-grid">
+        {error === 'AUTH_REQUIRED' && (
+          <div className="auth-required-overlay">
+            <div className="auth-required-card">
+              <p>カレンダーを同期するために、もう一度ログインをお願いします。</p>
+              <button className="auth-reconnect-btn" onClick={onRefresh}>
+                Googleでログイン
+              </button>
+            </div>
+          </div>
+        )}
         {weeks.map((week, wi) => (
           <div key={wi} className="month-row">
             {week.map((date, di) => {

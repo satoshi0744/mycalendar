@@ -1,7 +1,7 @@
 // MyCalendar Service Worker
 // キャッシュ戦略: App Shell（HTML/CSS/JS）はキャッシュ優先、API呼び出しはネットワーク優先
 
-const CACHE_NAME = 'mycalendar-v5';
+const CACHE_NAME = 'mycalendar-cache-v6';
 const APP_SHELL = [
   './',
   './index.html',
@@ -31,8 +31,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Google API呼び出しは常にネットワークから取得
-  if (url.hostname.includes('googleapis.com') || url.hostname.includes('google.com')) {
+  // Google API呼び出しは常にネットワークから取得。また http/https 以外 (chrome-extension等) はキャッシュ対象外
+  if (!url.protocol.startsWith('http') || url.hostname.includes('googleapis.com') || url.hostname.includes('google.com')) {
     return;
   }
 

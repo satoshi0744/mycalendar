@@ -6,7 +6,7 @@
  */
 
 import type { AppEvent, ArchiveFile, CalendarInfo } from '../data/types';
-import { getAccessToken } from '../auth/GoogleAuth';
+import { getAccessToken, silentRefresh } from '../auth/GoogleAuth';
 
 const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
 const ARCHIVE_FOLDER_NAME = 'calendar_archives';
@@ -14,7 +14,7 @@ const ARCHIVE_FOLDER_NAME = 'calendar_archives';
 /**
  * 認証ヘッダー付きfetchラッパー
  */
-async function authFetch(url: string): Promise<Response> {
+async function authFetch(url: string, isRetry: boolean = false): Promise<Response> {
   const token = getAccessToken();
   if (!token) {
     throw new Error('Not authenticated');
@@ -25,6 +25,13 @@ async function authFetch(url: string): Promise<Response> {
   });
 
   if (!res.ok) {
+    if (res.status === 401 && !isRetry) {
+      console.log('Drive API 401: Attempting silent refresh...');
+      const success = await silentRefresh();
+      if (success) {
+        return authFetch(url, true);
+      }
+    }
     throw new Error(`Drive API error (${res.status}): ${await res.text()}`);
   }
 

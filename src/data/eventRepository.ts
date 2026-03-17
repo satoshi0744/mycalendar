@@ -1,21 +1,22 @@
 /**
  * MyCalendar - データ統合・正規化リポジトリ
  * 
- * Calendar API と Driveアーカイブの2つのデータソースを
+ * Calendar API と Driveアーカイブ (およびローカルキャッシュ) を
  * 統合・重複排除・ソートして返す中核ロジック。
  * 
  * 設計:
  *   - 直近1年分 → Calendar API からリアルタイム取得
- *   - 1年以上前 → GASで抽出済みの Google Drive アーカイブ（JSON）から取得
- *   - 両方の期間にまたがる場合は、両ソースから取得してマージ
+ *   - それ以前（または最新APIから漏れる分） → ローカルキャッシュまたは Google Drive アーカイブ
+ *   - Drive-First: まずキャッシュを探し、バックグラウンドまたは必要に応じて Drive から落とす
  */
 
 import type { AppEvent, CalendarInfo } from './types';
-import { fetchEvents, fetchCalendarList } from '../api/calendarClient';
+import { fetchEvents, fetchCalendarList, searchEvents as searchApiEvents } from '../api/calendarClient';
 import { fetchArchivesForYears } from '../api/driveClient';
+import { getArchivesFromCache, saveArchiveToCache, mergeArchiveToCache } from './cacheStorage';
 
-/** アーカイブ境界日（この日より前はアーカイブから取得） */
-function getArchiveBoundary(): Date {
+/** アーカイブとAPIの境界日（GASのアーカイブ仕様に合わせる: 今年の1年前の1月1日） */
+function getApiBoundary(): Date {
   const d = new Date();
   d.setFullYear(d.getFullYear() - 1);
   d.setMonth(0, 1);
@@ -23,93 +24,155 @@ function getArchiveBoundary(): Date {
   return d;
 }
 
+
 /**
  * 指定期間のイベントを取得する。
- * 期間に応じてAPI・アーカイブ・両方のソースから自動的にフェッチし、
- * マージして返す。
- * 
- * @param timeMin 表示期間の開始
- * @param timeMax 表示期間の終了
- * @param calendarIds 取得対象のカレンダーID配列
  */
 export async function getEventsForRange(
   timeMin: Date,
   timeMax: Date,
   calendarIds: string[],
 ): Promise<AppEvent[]> {
-  const boundary = getArchiveBoundary();
+  // 全ての年をアーカイブ/キャッシュの対象にする
+  const startYear = timeMin.getFullYear();
+  const endYear = timeMax.getFullYear();
+  const archiveYears: number[] = [];
+  for (let y = startYear; y <= endYear; y++) {
+    archiveYears.push(y);
+  }
 
+  // APIが必要な期間か判定
+  const boundary = getApiBoundary();
   const needsApi = timeMax > boundary;
-  const needsArchive = timeMin < boundary;
 
   const fetchPromises: Promise<AppEvent[]>[] = [];
 
-  // 1. API から取得（直近1年分）
+  // 1. API から取得（境界より新しい期間）
   if (needsApi) {
     const apiMin = timeMin > boundary ? timeMin : boundary;
-    fetchPromises.push(
-      fetchEvents(calendarIds, apiMin, timeMax).catch(err => {
-        console.warn('Calendar API fetch failed:', err);
-        return [] as AppEvent[];
-      })
-    );
+    const apiPromise = fetchEvents(calendarIds, apiMin, timeMax).then(events => {
+      // 取得した直近データもローカルの年別キャッシュに保存（マージ）する
+      const eventsByYear = new Map<number, AppEvent[]>();
+      for (const e of events) {
+        const y = e.start.getFullYear();
+        if (!eventsByYear.has(y)) eventsByYear.set(y, []);
+        eventsByYear.get(y)!.push(e);
+      }
+      for (const [year, yearEvents] of eventsByYear.entries()) {
+        mergeArchiveToCache(year, yearEvents);
+      }
+      return events;
+    });
+    fetchPromises.push(apiPromise);
   }
 
-  // 2. アーカイブから取得（1年以上前）
-  if (needsArchive) {
-    const archiveMax = timeMax < boundary ? timeMax : boundary;
-    const startYear = timeMin.getFullYear();
-    const endYear = archiveMax.getFullYear();
-    const years: number[] = [];
-    for (let y = startYear; y <= endYear; y++) {
-      years.push(y);
+  // 2. アーカイブ/キャッシュから取得
+  if (archiveYears.length > 0) {
+    // まずはキャッシュから取得（即時）
+    const cachedEvents = getArchivesFromCache(archiveYears);
+    
+    // キャッシュがない年があるか確認
+    const cachedYears = new Set(cachedEvents.map(e => e.start.getFullYear()));
+    const missingYears = archiveYears.filter(y => !cachedYears.has(y));
+
+    if (missingYears.length > 0) {
+      // 足りない分は Drive から取得
+      const drivePromise = fetchArchivesForYears(missingYears).then(result => {
+        // 取得したデータは年ごとにキャッシュに保存
+        const eventsByYear = new Map<number, AppEvent[]>();
+        for (const e of result.events) {
+          const y = e.start.getFullYear();
+          if (!eventsByYear.has(y)) eventsByYear.set(y, []);
+          eventsByYear.get(y)!.push(e);
+        }
+        for (const year of missingYears) {
+          saveArchiveToCache(year, eventsByYear.get(year) || []);
+        }
+        return result.events;
+      }).catch(err => {
+        console.warn('Drive fetch error:', err);
+        return [] as AppEvent[];
+      });
+      
+      fetchPromises.push(drivePromise);
     }
 
-    fetchPromises.push(
-      fetchArchivesForYears(years)
-        .then(result => {
-          // アーカイブのイベントを表示期間内 & 対象カレンダーのみフィルタ
-          return result.events.filter(e => {
-            const inRange = e.start >= timeMin && e.start <= archiveMax;
-            const calendarMatch = calendarIds.length === 0 || calendarIds.includes(e.calendarId);
-            return inRange && calendarMatch;
-          });
-        })
-        .catch(err => {
-          console.warn('Archive fetch failed:', err);
-          return [] as AppEvent[];
-        })
-    );
+    // すでにあるキャッシュは即座に結果に含めるため、Promise.resolve でラップ
+    if (cachedEvents.length > 0) {
+      fetchPromises.push(Promise.resolve(cachedEvents));
+    }
   }
 
-  // 3. 全ソースの結果を待ち、マージ
-  const results = await Promise.all(fetchPromises);
-  const flatEvents = results.flat();
+  try {
+    const results = await Promise.all(fetchPromises);
+    const flatEvents = results.flat();
 
-  // 4. 重複排除（IDベース、APIの結果を優先）
-  return deduplicateAndSort(flatEvents);
+    // 表示期間内 & 対象カレンダーのみフィルタ（アーカイブとAPIが混ざっているため）
+    const filteredEvents = flatEvents.filter(e => {
+      const inRange = e.start >= timeMin && e.start <= timeMax;
+      const calendarMatch = calendarIds.length === 0 || calendarIds.includes(e.calendarId);
+      return inRange && calendarMatch;
+    });
+
+    return deduplicateAndSort(filteredEvents);
+  } catch (err) {
+    console.warn('getEventsForRange fallback to local only due to error:', err);
+    // 全体のフェッチが失敗（通信エラー等）した場合、すでに取得済みのキャッシュ分だけでも返す
+    const cachedEvents = getArchivesFromCache(archiveYears);
+    return deduplicateAndSort(cachedEvents.filter(e => {
+      const inRange = e.start >= timeMin && e.start <= timeMax;
+      const calendarMatch = calendarIds.length === 0 || calendarIds.includes(e.calendarId);
+      return inRange && calendarMatch;
+    }));
+  }
 }
 
 /**
  * カレンダー一覧を取得する。
  */
 export async function getAllCalendars(): Promise<CalendarInfo[]> {
-  try {
-    return await fetchCalendarList();
-  } catch (error) {
-    console.warn('Failed to fetch calendar list:', error);
-    return [];
-  }
+  return await fetchCalendarList();
+}
+
+/**
+ * 全期間（API + 5年分キャッシュ）からイベントを検索する。
+ */
+export async function searchEventsAcrossAll(
+  calendarIds: string[],
+  query: string,
+): Promise<AppEvent[]> {
+  const currentYear = new Date().getFullYear();
+  const archiveYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  const searchPromises: Promise<AppEvent[]>[] = [];
+
+  // 1. API 検索（オンライン時のみ成功する）
+  searchPromises.push(searchApiEvents(calendarIds, query).catch(() => []));
+
+  // 2. ローカルキャッシュ（5年分）を検索
+  const cacheSearchPromise = (async () => {
+    const allCached = getArchivesFromCache(archiveYears);
+    const lowerQuery = query.toLowerCase();
+    return allCached.filter(e => 
+      (e.title?.toLowerCase().includes(lowerQuery) || 
+       e.description?.toLowerCase().includes(lowerQuery) ||
+       e.location?.toLowerCase().includes(lowerQuery)) &&
+      (calendarIds.length === 0 || calendarIds.includes(e.calendarId))
+    );
+  })();
+  searchPromises.push(cacheSearchPromise);
+
+  const results = await Promise.all(searchPromises);
+  return deduplicateAndSort(results.flat());
 }
 
 /**
  * イベントを重複排除し、開始日時でソートする。
- * 同一IDのイベントが複数ある場合、APIの結果（source: 'api'）を優先する。
  */
 function deduplicateAndSort(events: AppEvent[]): AppEvent[] {
   const map = new Map<string, AppEvent>();
 
-  // アーカイブを先に登録し、APIのデータで上書きすることで API優先を実現
+  // アーカイブ(cache)を先に登録し、APIのデータで上書きすることで 最新を優先
   const archiveEvents = events.filter(e => e.source === 'archive');
   const apiEvents = events.filter(e => e.source === 'api');
 
@@ -121,6 +184,6 @@ function deduplicateAndSort(events: AppEvent[]): AppEvent[] {
   }
 
   return [...map.values()].sort(
-    (a, b) => a.start.getTime() - b.start.getTime()
+    (a, b) => (a.start?.getTime() || 0) - (b.start?.getTime() || 0)
   );
 }

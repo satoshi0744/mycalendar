@@ -9,6 +9,13 @@ interface Props {
   onEventClick?: (event: AppEvent) => void;
 }
 
+/** 日付aがbより前の日か */
+function isBeforeDay(a: Date, b: Date): boolean {
+  const aDate = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const bDate = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return aDate.getTime() < bDate.getTime();
+}
+
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 function calculateOverlap(events: AppEvent[]) {
@@ -146,7 +153,7 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
                   return (
                     <div
                       key={i}
-                      className="day-event"
+                      className={`day-event ${isBeforeDay(event.start, new Date()) ? 'past-event' : ''}`}
                       style={{
                         borderLeftColor: event.eventColor || colorMap.get(event.calendarId) || '#4285f4',
                         backgroundColor: `${event.eventColor || colorMap.get(event.calendarId) || '#4285f4'}18`,

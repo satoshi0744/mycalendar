@@ -158,6 +158,18 @@
   opacity: 0.85;
 }
 
+.week-event.past-event,
+.week-allday-event.past-event {
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .week-event.past-event,
+  .week-allday-event.past-event {
+    opacity: 1;
+  }
+}
+
 .week-event-time {
   font-size: 10px;
   font-weight: 600;

@@ -460,6 +460,84 @@ body {
   transform: scale(0.95);
 }
 
+/* --- Offline Banner --- */
+.offline-banner {
+  background-color: var(--warning);
+  color: #fff;
+  padding: 8px 16px;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-weight: 500;
+}
+
+.offline-retry-btn {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  margin-left: 12px;
+}
+
+.offline-retry-btn:hover {
+  background-color: rgba(255, 255, 255, 0.35);
+}
+
+/* --- Sync Banner --- */
+.sync-banner {
+  background-color: var(--primary);
+  color: #fff;
+  padding: 4px 16px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 999;
+}
+
+.sync-spinner {
+  display: inline-block;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --- Sync Banner --- */
+.sync-banner {
+  background-color: var(--primary);
+  color: #fff;
+  padding: 4px 16px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 999;
+}
+
+.sync-spinner {
+  display: inline-block;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 768px) {
   .fab {
     bottom: 20px;
@@ -470,3 +548,4 @@ body {
     border-radius: 14px;
   }
 }
+

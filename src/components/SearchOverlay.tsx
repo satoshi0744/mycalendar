@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { AppEvent, CalendarInfo } from '../data/types';
-import { searchEvents } from '../api/calendarClient';
+import { searchEventsAcrossAll } from '../data/eventRepository';
 import './SearchOverlay.css';
 
 interface Props {
@@ -39,10 +39,14 @@ export default function SearchOverlay({ calendars, onClose, onEventClick }: Prop
         return;
       }
       
-      const fetched = await searchEvents(visibleIds, trimmed);
+      const fetched = await searchEventsAcrossAll(visibleIds, trimmed);
       setResults(fetched);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '検索に失敗しました');
+    } catch (err: any) {
+      if (!navigator.onLine || err.message?.includes('fetch') || err.message?.includes('network')) {
+        setError('オフラインのため、オンラインの予定が検索できませんでした。');
+      } else {
+        setError('予定の検索ができませんでした。少し時間を置いてからお試しください。');
+      }
     } finally {
       setLoading(false);
     }
@@ -115,7 +119,10 @@ export default function SearchOverlay({ calendars, onClose, onEventClick }: Prop
 
           {!loading && !error && hasSearched && results.length === 0 && (
             <div className="search-status">
-              「{query}」に一致する予定は見つかりませんでした。
+              <p>「{query}」に一致する予定は見つかりませんでした。</p>
+              <p className="search-offline-hint">
+                <small>💡 現在オフラインのため、5年以上前の予定は検索できない場合があります。オンライン時に再度お試しください。</small>
+              </p>
             </div>
           )}
 

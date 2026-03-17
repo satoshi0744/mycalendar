@@ -1,32 +1,51 @@
-/**
- * MyCalendar - カレンダーデータ取得カスタムフック
- */
-
 import { useState, useEffect, useCallback, useRef } from 'react';
+import localforage from 'localforage';
 import type { AppEvent, CalendarInfo, ViewMode } from '../data/types';
 import { getEventsForRange, getAllCalendars } from '../data/eventRepository';
-import { isAuthenticated } from '../auth/GoogleAuth';
+import { isAuthenticated, getAuthState } from '../auth/GoogleAuth';
 
-const VISIBILITY_STORAGE_KEY = '__mycal_calendar_visibility';
-const DEFAULT_CALENDAR_KEY = '__mycal_default_calendar';
+// localforage の初期設定
+localforage.config({
+  name: 'MyCalendar',
+  storeName: 'cache'
+});
 
-/** カレンダーの表示/非表示設定をlocalStorageに保存 */
-function saveVisibility(calendars: CalendarInfo[]): void {
+const VISIBILITY_STORAGE_KEY = 'calendar_visibility_v2';
+const DEFAULT_CALENDAR_KEY = 'default_calendar_id_v2';
+const CALENDARS_CACHE_KEY = 'calendars_v2';
+const LAST_SYNC_KEY = 'last_sync_timestamp';
+
+/** カレンダーリストをキャッシュに保存 */
+async function saveCalendarsCache(calendars: CalendarInfo[]): Promise<void> {
+  try {
+    await localforage.setItem(CALENDARS_CACHE_KEY, calendars);
+  } catch { /* ignore */ }
+}
+
+/** カレンダーリストをキャッシュから読み込み */
+async function loadCalendarsCache(): Promise<CalendarInfo[]> {
+  try {
+    const data = await localforage.getItem<CalendarInfo[]>(CALENDARS_CACHE_KEY);
+    return data || [];
+  } catch { return []; }
+}
+
+/** カレンダーの表示/非表示設定を保存 */
+async function saveVisibility(calendars: CalendarInfo[]): Promise<void> {
   try {
     const map: Record<string, boolean> = {};
     for (const c of calendars) {
       map[c.id] = c.visible;
     }
-    localStorage.setItem(VISIBILITY_STORAGE_KEY, JSON.stringify(map));
+    await localforage.setItem(VISIBILITY_STORAGE_KEY, map);
   } catch { /* ignore */ }
 }
 
-/** localStorageからカレンダーの表示/非表示設定を復元 */
-function restoreVisibility(calendars: CalendarInfo[]): CalendarInfo[] {
+/** 表示/非表示設定を復元 */
+async function restoreVisibility(calendars: CalendarInfo[]): Promise<CalendarInfo[]> {
   try {
-    const stored = localStorage.getItem(VISIBILITY_STORAGE_KEY);
-    if (stored) {
-      const map: Record<string, boolean> = JSON.parse(stored);
+    const map = await localforage.getItem<Record<string, boolean>>(VISIBILITY_STORAGE_KEY);
+    if (map) {
       return calendars.map(c => ({
         ...c,
         visible: map[c.id] !== undefined ? map[c.id] : c.visible,
@@ -49,11 +68,10 @@ interface UseCalendarDataReturn {
   toggleCalendarVisibility: (calendarId: string) => void;
   setDefaultCalendar: (calendarId: string) => void;
   refresh: () => void;
+  syncYearData: (force?: boolean) => Promise<void>;
+  syncing: boolean;
 }
 
-/**
- * 現在のビューモードと日付に基づいてイベントを取得するフック。
- */
 export function useCalendarData(): UseCalendarDataReturn {
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
@@ -61,34 +79,26 @@ export function useCalendarData(): UseCalendarDataReturn {
   const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [defaultCalendarId, setDefaultCalendarId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(DEFAULT_CALENDAR_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const [defaultCalendarId, setDefaultCalendarId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
-  // カレンダー一覧を保持するrefで、クロージャの古い値問題を回避
   const calendarsRef = useRef<CalendarInfo[]>([]);
-  calendarsRef.current = calendars;
 
-  const toggleCalendarVisibility = useCallback((calendarId: string) => {
-    setCalendars(prev => {
-      const updated = prev.map(c =>
-        c.id === calendarId ? { ...c, visible: !c.visible } : c
-      );
-      // 変更をlocalStorageに保存
-      saveVisibility(updated);
-      return updated;
-    });
-  }, []);
-
-  const setDefaultCalendar = useCallback((calendarId: string) => {
-    setDefaultCalendarId(calendarId);
-    try {
-      localStorage.setItem(DEFAULT_CALENDAR_KEY, calendarId);
-    } catch { /* ignore */ }
+  // 初期読み込み: IndexedDB からキャッシュを復旧
+  useEffect(() => {
+    async function init() {
+      const [cachedCals, storedDefault] = await Promise.all([
+        loadCalendarsCache(),
+        localforage.getItem<string>(DEFAULT_CALENDAR_KEY)
+      ]);
+      
+      const restoredCals = await restoreVisibility(cachedCals);
+      setCalendars(restoredCals);
+      calendarsRef.current = restoredCals;
+      
+      if (storedDefault) setDefaultCalendarId(storedDefault);
+    }
+    init();
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -98,26 +108,32 @@ export function useCalendarData(): UseCalendarDataReturn {
     setError(null);
 
     try {
-      // カレンダー一覧を取得（初回、またはまだ空の場合）
       let currentCalendars = calendarsRef.current;
       if (currentCalendars.length === 0) {
-        const calList = await getAllCalendars();
-        // localStorageから前回の表示/非表示設定を復元
-        const restored = restoreVisibility(calList);
-        setCalendars(restored);
-        currentCalendars = restored;
+        try {
+          const calList = await getAllCalendars();
+          const restored = await restoreVisibility(calList);
+          setCalendars(restored);
+          calendarsRef.current = restored;
+          await saveCalendarsCache(restored);
+          currentCalendars = restored;
+        } catch (e) {
+          console.warn('Network call failed, using cached calendars:', e);
+          const cachedCalendars = await loadCalendarsCache();
+          if (cachedCalendars.length > 0) {
+            setCalendars(cachedCalendars);
+            calendarsRef.current = cachedCalendars;
+            currentCalendars = cachedCalendars;
+          }
+        }
       }
 
       if (currentCalendars.length === 0) {
-        // カレンダーが1つもない場合
         setLoading(false);
         return;
       }
 
-      // 表示範囲を計算
       const { start, end } = getViewRange(currentDate, viewMode);
-
-      // 表示中のカレンダーIDのみを対象
       const visibleIds = currentCalendars.filter(c => c.visible).map(c => c.id);
       if (visibleIds.length === 0) {
         setEvents([]);
@@ -125,36 +141,137 @@ export function useCalendarData(): UseCalendarDataReturn {
         return;
       }
 
-      // イベント取得
-      const fetchedEvents = await getEventsForRange(start, end, visibleIds);
-      setEvents(fetchedEvents);
+      let fetchedEvents: AppEvent[] = [];
+      try {
+        fetchedEvents = await getEventsForRange(start, end, visibleIds);
+      } catch (fetchErr: any) {
+        if (fetchErr.status === 401 || fetchErr.status === 403 || fetchErr.message?.includes('auth')) {
+          setError('AUTH_REQUIRED');
+        } else {
+          setError(fetchErr.message || '予定の取得に失敗しました');
+        }
+      }
+      
+      setEvents(prev => {
+        const baseMap = new Map<string, AppEvent>();
+        // 既存のイベントをマップに展開
+        for (const e of prev) {
+          baseMap.set(`${e.calendarId}__${e.id}`, e);
+        }
+        // 新しく取得したイベントで上書き
+        for (const e of fetchedEvents) {
+          baseMap.set(`${e.calendarId}__${e.id}`, e);
+        }
+        return Array.from(baseMap.values()).sort((a, b) => a.start.getTime() - b.start.getTime());
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : '予定の取得に失敗しました');
     } finally {
       setLoading(false);
     }
-  // calendarsRefを使うため、calendarsへの依存を外す
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate, viewMode]);
 
-  const refresh = useCallback(() => {
-    // リフレッシュ時はカレンダー一覧も再取得
-    calendarsRef.current = [];
-    setCalendars([]);
-    fetchData();
-  }, [fetchData]);
-
-  // カレンダー表示/非表示の切替時にイベントを再取得
   useEffect(() => {
     if (calendars.length > 0) {
       fetchData();
     }
   }, [calendars, fetchData]);
 
-  // 日付・ビューモード変更時にイベントを再取得
-  useEffect(() => {
-    fetchData();
+  const toggleCalendarVisibility = useCallback(async (calendarId: string) => {
+    const updated = calendarsRef.current.map(c =>
+      c.id === calendarId ? { ...c, visible: !c.visible } : c
+    );
+    setCalendars(updated);
+    calendarsRef.current = updated;
+    await saveVisibility(updated);
+    await saveCalendarsCache(updated);
+    
+    const isNowVisible = updated.find(c => c.id === calendarId)?.visible;
+    if (isNowVisible) fetchData();
   }, [fetchData]);
+
+  const setDefaultCalendar = useCallback(async (calendarId: string) => {
+    setDefaultCalendarId(calendarId);
+    await localforage.setItem(DEFAULT_CALENDAR_KEY, calendarId);
+  }, []);
+
+  const syncYearData = useCallback(async (force: boolean = false) => {
+    const state = getAuthState();
+    if (!state.isSignedIn || syncing) return;
+
+    // 前回の同期から24時間以内ならスキップ（強制実行時以外）
+    if (!force) {
+      const lastSync = await localforage.getItem<number>(LAST_SYNC_KEY);
+      const now = Date.now();
+      if (lastSync && now - lastSync < 24 * 60 * 60 * 1000) {
+        console.log('Sync skipped (last sync was less than 24h ago)');
+        // スキップ時も、現在の年〜過去4年分をさっとキャッシュから舐めて state に入れる
+        const currentYear = new Date().getFullYear();
+        const cached = await getEventsForRange(new Date(currentYear - 4, 0, 1), new Date(currentYear, 11, 31), calendarsRef.current.map(c => c.id));
+        setEvents(prev => {
+          const map = new Map<string, AppEvent>();
+          for (const e of prev) map.set(`${e.calendarId}__${e.id}`, e);
+          for (const e of cached) map.set(`${e.calendarId}__${e.id}`, e);
+          return Array.from(map.values()).sort((a, b) => a.start.getTime() - b.start.getTime());
+        });
+        return;
+      }
+    }
+
+    setSyncing(true);
+    try {
+      const currentYear = new Date().getFullYear();
+      // 過去5年分を同期対象にする
+      const years = Array.from({length: 5}, (_, i) => currentYear - i);
+
+      console.log(`Starting background sync for years: ${years.join(', ')}`);
+      const visibleIds = calendarsRef.current.map(c => c.id);
+      
+      if (visibleIds.length > 0) {
+        // 各年ごとに順次取得してキャッシュを構築
+        for (const year of years) {
+          const start = new Date(year, 0, 1);
+          const end = new Date(year, 11, 31, 23, 59, 59);
+          // 内部で Drive or API から取得して mergeArchiveToCache される
+          const fetched = await getEventsForRange(start, end, visibleIds);
+          
+          setEvents(prev => {
+            const map = new Map<string, AppEvent>();
+            for (const e of prev) map.set(`${e.calendarId}__${e.id}`, e);
+            for (const e of fetched) map.set(`${e.calendarId}__${e.id}`, e);
+            return Array.from(map.values()).sort((a, b) => a.start.getTime() - b.start.getTime());
+          });
+        }
+      }
+      
+      await localforage.setItem(LAST_SYNC_KEY, Date.now());
+      console.log('Background sync completed.');
+    } catch (e) {
+      console.warn('Background sync failed:', e);
+    } finally {
+      setSyncing(false);
+    }
+  }, [syncing]);
+
+  const refresh = useCallback(async () => {
+    const state = getAuthState();
+    if (!state.isSignedIn) {
+      setError('AUTH_REQUIRED');
+      return;
+    }
+    setLoading(true);
+    try {
+      const calList = await getAllCalendars();
+      const restored = await restoreVisibility(calList);
+      calendarsRef.current = restored;
+      setCalendars(restored);
+      await saveCalendarsCache(restored);
+    } catch (e) {
+      console.warn('refresh failed:', e);
+    }
+    fetchData();
+    syncYearData(false); // 低頻度での同期
+  }, [fetchData, syncYearData]);
 
   return {
     events,
@@ -169,36 +286,25 @@ export function useCalendarData(): UseCalendarDataReturn {
     toggleCalendarVisibility,
     setDefaultCalendar,
     refresh,
+    syncYearData,
+    syncing,
   };
 }
 
-/**
- * 月曜始まりの曜日オフセットを取得する。
- * 月曜=0, 火曜=1, ... 日曜=6
- */
 function getMondayBasedDay(date: Date): number {
   return (date.getDay() + 6) % 7;
 }
 
-/**
- * ビューモードと基準日から表示範囲を計算する（月曜始まり）。
- */
-function getViewRange(
-  date: Date,
-  mode: ViewMode,
-): { start: Date; end: Date } {
+function getViewRange(date: Date, mode: ViewMode): { start: Date; end: Date } {
   const y = date.getFullYear();
   const m = date.getMonth();
   const d = date.getDate();
 
   switch (mode) {
     case 'year': {
-      const start = new Date(y, 0, 1);
-      const end = new Date(y, 11, 31, 23, 59, 59, 999);
-      return { start, end };
+      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31, 23, 59, 59, 999) };
     }
     case 'month': {
-      // 月初の週の月曜 ～ 月末の週の日曜
       const firstDay = new Date(y, m, 1);
       const lastDay = new Date(y, m + 1, 0);
       const start = new Date(firstDay);
@@ -209,16 +315,13 @@ function getViewRange(
       return { start, end };
     }
     case 'week': {
-      // 月曜始まりの週
       const mondayOffset = getMondayBasedDay(new Date(y, m, d));
       const start = new Date(y, m, d - mondayOffset);
       const end = new Date(y, m, d - mondayOffset + 6, 23, 59, 59, 999);
       return { start, end };
     }
     case 'day': {
-      const start = new Date(y, m, d);
-      const end = new Date(y, m, d, 23, 59, 59, 999);
-      return { start, end };
+      return { start: new Date(y, m, d), end: new Date(y, m, d, 23, 59, 59, 999) };
     }
   }
 }
