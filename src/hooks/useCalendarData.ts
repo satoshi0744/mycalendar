@@ -70,6 +70,7 @@ interface UseCalendarDataReturn {
   refresh: () => void;
   syncYearData: (force?: boolean) => Promise<void>;
   syncing: boolean;
+  lastSyncTime: number | null;
 }
 
 export function useCalendarData(): UseCalendarDataReturn {
@@ -81,15 +82,17 @@ export function useCalendarData(): UseCalendarDataReturn {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [defaultCalendarId, setDefaultCalendarId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
 
   const calendarsRef = useRef<CalendarInfo[]>([]);
 
   // 初期読み込み: IndexedDB からキャッシュを復旧
   useEffect(() => {
     async function init() {
-      const [cachedCals, storedDefault] = await Promise.all([
+      const [cachedCals, storedDefault, storedSync] = await Promise.all([
         loadCalendarsCache(),
-        localforage.getItem<string>(DEFAULT_CALENDAR_KEY)
+        localforage.getItem<string>(DEFAULT_CALENDAR_KEY),
+        localforage.getItem<number>(LAST_SYNC_KEY)
       ]);
       
       const restoredCals = await restoreVisibility(cachedCals);
@@ -97,6 +100,7 @@ export function useCalendarData(): UseCalendarDataReturn {
       calendarsRef.current = restoredCals;
       
       if (storedDefault) setDefaultCalendarId(storedDefault);
+      if (storedSync) setLastSyncTime(storedSync);
     }
     init();
   }, []);
@@ -221,8 +225,8 @@ export function useCalendarData(): UseCalendarDataReturn {
     setSyncing(true);
     try {
       const currentYear = new Date().getFullYear();
-      // 過去5年分を同期対象にする
-      const years = Array.from({length: 5}, (_, i) => currentYear - i);
+      // 最新2年分（今年＋昨年）を同期対象にする
+      const years = Array.from({length: 2}, (_, i) => currentYear - i);
 
       console.log(`Starting background sync for years: ${years.join(', ')}`);
       const visibleIds = calendarsRef.current.map(c => c.id);
@@ -244,7 +248,9 @@ export function useCalendarData(): UseCalendarDataReturn {
         }
       }
       
-      await localforage.setItem(LAST_SYNC_KEY, Date.now());
+      const now = Date.now();
+      await localforage.setItem(LAST_SYNC_KEY, now);
+      setLastSyncTime(now);
       console.log('Background sync completed.');
     } catch (e) {
       console.warn('Background sync failed:', e);
@@ -288,6 +294,7 @@ export function useCalendarData(): UseCalendarDataReturn {
     refresh,
     syncYearData,
     syncing,
+    lastSyncTime,
   };
 }
 

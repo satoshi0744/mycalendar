@@ -40,6 +40,7 @@ function App() {
     syncYearData,
     syncing,
     error,
+    lastSyncTime,
   } = useCalendarData();
 
   useEffect(() => {
@@ -255,7 +256,7 @@ function App() {
       {syncing && (
         <div className="sync-banner">
           <span className="sync-spinner">🔄</span>
-          <span>過去5年分のデータを同期中...</span>
+          <span>最新2年分のデータを同期中...</span>
         </div>
       )}
 
@@ -305,6 +306,17 @@ function App() {
             onToggle={toggleCalendarVisibility}
             onSetDefault={setDefaultCalendar}
           />
+          {lastSyncTime && (
+            <div className="sidebar-footer">
+              <div className="sidebar-sync-status">
+                <span className="sync-status-icon">📦</span>
+                <span>最新2年分の同期完了</span>
+                <span className="sync-status-time">
+                  {new Date(lastSyncTime).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          )}
         </aside>
 
         {/* オーバーレイ（サイドバー開いてる時にタップで閉じる） */}
@@ -319,7 +331,17 @@ function App() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {loading && <div className="loading-bar" />}
+          {loading && (
+            <>
+              <div className="loading-bar" />
+              <div className="loading-overlay">
+                <div className="loading-message">
+                  <span className="loading-spinner">⌛</span>
+                  アーカイブから読み込み中...
+                </div>
+              </div>
+            </>
+          )}
           {viewMode === 'year' && (
             <YearView
               currentDate={currentDate}
