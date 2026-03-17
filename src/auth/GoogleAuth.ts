@@ -359,7 +359,12 @@ function handleTokenResponse(response: TokenResponse): void {
     }, refreshIn);
   }
 
-  // ユーザー情報を取得 → 保存 → リスナーに通知
+  // 重要：トークンが取れた時点で一度保存し、即座に「サインイン済み」を通知する。
+  // これによりユーザー名取得（ネットワーク待ち）が発生する前にログイン画面が閉じる。
+  saveSession();
+  notifyListeners();
+
+  // ユーザー情報をバックグラウンドで取得（成功すれば後で再度通知される）
   fetchUserInfo(response.access_token).then(() => {
     saveSession();
     notifyListeners();
