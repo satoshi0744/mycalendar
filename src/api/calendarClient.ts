@@ -348,14 +348,24 @@ function convertApiEvent(item: any, calendarId: string): AppEvent | null {
     eventColor = EVENT_COLORS[item.colorId];
   }
 
+  const startDate = new Date(startStr);
+  let endDate = new Date(endStr || startStr);
+
+  // Google Calendar APIのAll-Dayイベントは、endが「翌日の0時(exclusive)」で返ってくる。
+  // MyCalendar内の表示ロジック（isAllDay時の日付比較など）を破綻させないため、
+  // 終了時刻から1ミリ秒引いて「当日の23:59:59.999」扱い（inclusive）に補正する。
+  if (isAllDay && endStr) {
+    endDate.setTime(endDate.getTime() - 1);
+  }
+
   return {
     id: item.id,
     calendarId,
     title: item.summary || '(無題)',
     description: item.description || '',
     location: item.location || '',
-    start: new Date(startStr),
-    end: new Date(endStr || startStr),
+    start: startDate,
+    end: endDate,
     isAllDay,
     source: 'api',
     eventColor,
