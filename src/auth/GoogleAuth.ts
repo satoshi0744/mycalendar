@@ -38,20 +38,24 @@ interface TokenClient {
   callback: (response: TokenResponse) => void;
 }
 
-declare const google: {
-  accounts: {
-    oauth2: {
-      initTokenClient: (config: {
-        client_id: string;
-        scope: string;
-        callback: (response: TokenResponse) => void;
-        hint?: string;
-        login_hint?: string;
-      }) => TokenClient;
-      revoke: (token: string, callback?: () => void) => void;
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        oauth2: {
+          initTokenClient: (config: {
+            client_id: string;
+            scope: string;
+            callback: (response: TokenResponse) => void;
+            hint?: string;
+            login_hint?: string;
+          }) => TokenClient;
+          revoke: (token: string, callback?: () => void) => void;
+        };
+      };
     };
-  };
-};
+  }
+}
 
 // --- 状態 ---
 let accessToken: string | null = null;
@@ -164,19 +168,13 @@ export function initAuth(clientId: string): void {
 
   const hint = getSavedLoginHint();
 
-  // Google SDKがロードされていない（オフラインなど）場合は初期化できない
-  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-    console.warn('Google Identity Services SDK not loaded (offline?).');
+  // Google SDKがロードされていない場合は初期化をスキップ
+  if (typeof window === 'undefined' || !window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+    console.warn('Google Identity Services SDK not loaded yet.');
     return;
   }
 
-  // Google SDKがロードされていない（オフラインなど）場合は初期化できない
-  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-    console.warn('Google Identity Services SDK not loaded (offline?).');
-    return;
-  }
-
-  tokenClient = google.accounts.oauth2.initTokenClient({
+  tokenClient = window.google.accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope: SCOPES,
     callback: handleTokenResponse,
@@ -210,8 +208,14 @@ export function signIn(): void {
   }
 
   const hint = getSavedLoginHint();
-  // prompt '' + login_hint でアカウント選択をスキップ
-  tokenClient!.requestAccessToken({
+  
+  // tokenClientが存在しない（初期化失敗）場合は何もしない（クラッシュ防止）
+  if (!tokenClient) {
+    console.warn('signIn: tokenClient not ready.');
+    return;
+  }
+
+  tokenClient.requestAccessToken({
     prompt: '',
     ...(hint ? { login_hint: hint } : {}),
   });
@@ -281,8 +285,9 @@ export function silentRefresh(): Promise<boolean> {
  * ログアウトする（トークンを破棄）。
  */
 export function signOut(): void {
-  if (accessToken && typeof google !== 'undefined' && google.accounts?.oauth2) {
-    google.accounts.oauth2.revoke(accessToken);
+  const g = typeof window !== 'undefined' ? window.google : null;
+  if (accessToken && g && g.accounts?.oauth2) {
+    g.accounts.oauth2.revoke(accessToken);
   }
   accessToken = null;
   tokenExpiresAt = 0;

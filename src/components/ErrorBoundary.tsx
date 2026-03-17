@@ -34,30 +34,30 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="error-boundary-screen">
           <div className="error-boundary-card">
             <div className="error-boundary-icon">{isAuthError ? '🔑' : '⚠️'}</div>
-            <h1>{isAuthError ? 'セッションが切れました' : '問題が発生しました'}</h1>
+            <h1>{isAuthError ? 'カレンダーを同期するために' : '表示に時間がかかっています'}</h1>
             <p>
               {isAuthError 
-                ? '一定時間が経過したため、自動的に接続が解除されました。' 
-                : 'アプリの描画中に予期せぬエラーが起きました。'}
+                ? '一度ログアウトして、もう一度ログインをお願いします。' 
+                : 'カレンダーの読み込み中に少しお休みが必要になったようです。'}
             </p>
             <p className="error-boundary-msg">{this.state.error?.message}</p>
             <p className="error-boundary-hint">
               {isAuthError
-                ? '「再起動してログイン」を押すと、ログイン画面に戻ります。'
-                : '「設定をリセット」を押すと、初期状態に戻して再起動します。予定データは消えません。'}
+                ? '「もう一度ログイン」を押すと、ログイン画面に戻ります。'
+                : '「リセットして再起動」を押すと、初期状態に戻ってアプリを再起動します。予定データは消えませんのでご安心ください。'}
             </p>
             <button
               className="error-boundary-btn"
               onClick={() => {
                 if (isAuthError) {
-                  localStorage.removeItem('__mycal_token'); // トークンをクリアして確実にログインへ誘導
+                  localStorage.removeItem('__mycal_token');
                 } else {
                   localStorage.clear();
                 }
                 window.location.reload();
               }}
             >
-              {isAuthError ? '再起動してログイン' : '設定をリセットして再起動'}
+              {isAuthError ? 'もう一度ログイン' : 'リセットして再起動'}
             </button>
           </div>
         </div>

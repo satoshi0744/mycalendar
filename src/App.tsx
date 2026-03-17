@@ -53,7 +53,7 @@ function App() {
       // initAuth内で完了した初回の状態変更時のみデータを取得する
       if (state.isSignedIn && !loading) {
         refresh(); // 直近データを取得
-        syncYearData(false); // 過去5年分を同期（1日1回）
+        syncYearData(false).catch(() => {}); // 過去分の同期を試みる
       }
     });
 
