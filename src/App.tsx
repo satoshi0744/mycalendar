@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { AuthState, AppEvent } from './data/types';
-import { initAuth, signIn, signOut, onAuthStateChange, getAuthState, getSavedLoginHint, silentRefresh } from './auth/GoogleAuth';
+import { initAuth, signIn, signOut, onAuthStateChange, getAuthState, getSavedLoginHint } from './auth/GoogleAuth';
 import { useCalendarData } from './hooks/useCalendarData';
 import YearView from './components/YearView';
 import MonthView from './components/MonthView';
@@ -62,18 +62,15 @@ function App() {
       setAuthLoading(false);
     }, 5000);
 
-    // スマホ対応: バックグラウンドから復帰した時に自動で最新化する
     const handleResume = () => {
       if (document.visibilityState === 'visible') {
         const state = getAuthState();
+        // ログイン済みならバックグラウンドで予定を最新化する。
+        // 未ログイン時の自動更新（silentRefresh）は、API通信時の401エラー（authFetchの自動リフレッシュ）
+        // またはユーザーの明示的なログイン操作に任せる。
+        // これにより、画面復帰時の不必要な認証ポップアップの連鎖を防ぐ。
         if (state.isSignedIn) {
-          // すでにログイン中なら、バックグラウンドで最新データを取得
           refresh();
-        } else if (import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-          // トークンが切れている場合は、裏側でサイレント更新を試みるだけにする
-          // ここでrefreshを呼ぶと、真っ白な状態で止まるリスクがあるため、
-          // 更新が成功した後の onAuthStateChange に任せる
-          silentRefresh().catch(() => {});
         }
       }
     };
@@ -87,7 +84,7 @@ function App() {
       document.removeEventListener('visibilitychange', handleResume);
       window.removeEventListener('focus', handleResume);
     };
-  }, [refresh]);
+  }, []); // 重要：認証の初期化とリスナー登録は、アプリ起動時の1回のみに限定する（[refresh]依存を削除）
 
   // ビューに表示するイベント（非表示カレンダーを除外）
   const visibleCalendarIds = new Set(
