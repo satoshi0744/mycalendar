@@ -23,28 +23,38 @@ async function authFetch(
     throw new Error('Not authenticated');
   }
   
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
 
-  if (!res.ok) {
-    if (res.status === 401 && !isRetry) {
-      console.log('Calendar API 401: Attempting silent refresh...');
-      const success = await silentRefresh();
-      if (success) {
-        return authFetch(url, options, true);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      if (res.status === 401 && !isRetry) {
+        console.log('Calendar API 401: Attempting silent refresh...');
+        const success = await silentRefresh();
+        if (success) {
+          return authFetch(url, options, true);
+        }
       }
+      const errBody = await res.text();
+      throw new Error(`Calendar API error (${res.status}): ${errBody}`);
     }
-    const errBody = await res.text();
-    throw new Error(`Calendar API error (${res.status}): ${errBody}`);
-  }
 
-  return res;
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
 }
 
 /**

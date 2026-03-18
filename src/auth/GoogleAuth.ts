@@ -67,10 +67,12 @@ let userInfo: { name: string | null; email: string | null } = { name: null, emai
 // --- ロックと再認証状態の管理 ---
 let refreshPromise: Promise<boolean> | null = null;
 let refreshResolver: ((success: boolean) => void) | null = null;
+let requestInProgress: boolean = false; // ログイン画面等の重複表示を防ぐロック
 
 function clearRefreshState(): void {
   refreshPromise = null;
   refreshResolver = null;
+  requestInProgress = false;
 }
 
 /**
@@ -196,6 +198,12 @@ export function initAuth(clientId: string): void {
  * 保存されたアカウントがあればアカウント選択をスキップする。
  */
 export function signIn(): void {
+  // すでに何らかの認証処理（自動リフレッシュ等）が進行中なら重複させない
+  if (requestInProgress) {
+    console.log('signIn: authentication is already in progress. skipping.');
+    return;
+  }
+
   // 未初期化の場合はその場で初期化を試みる
   if (!tokenClient) {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -215,6 +223,7 @@ export function signIn(): void {
     return;
   }
 
+  requestInProgress = true;
   tokenClient.requestAccessToken({
     prompt: '',
     ...(hint ? { login_hint: hint } : {}),
@@ -228,18 +237,17 @@ export function signIn(): void {
  * @returns 成功したかどうかを示すPromise
  */
 export function silentRefresh(): Promise<boolean> {
-  if (refreshPromise) {
-    // すでにリフレッシュ中なら、その完了を待つ（競合防止）
-    return refreshPromise;
+  if (refreshPromise || requestInProgress) {
+    // すでにリフレッシュ中やログイン処理中なら、その完了を待つかスキップ（競合防止）
+    return refreshPromise || Promise.resolve(false);
   }
 
   if (!tokenClient) {
     console.warn('silentRefresh: tokenClient not initialized. Attempting initialization...');
-    // まだ初期化されていない場合は、保存されたクライアントIDがあれば初期化を試みる
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (clientId) {
       initAuth(clientId);
-      if (refreshPromise) return refreshPromise; // initAuth内で発火した場合はそれを返す
+      if (refreshPromise) return refreshPromise;
     }
     return Promise.resolve(false);
   }
@@ -268,12 +276,14 @@ export function silentRefresh(): Promise<boolean> {
     // prompt: 'none' でバックグラウンド取得を強制（失敗時は即エラーが返る）
     try {
       console.log('Attempting silent refresh for:', hint);
+      requestInProgress = true;
       tokenClient!.requestAccessToken({
         prompt: 'none',
         ...(hint ? { login_hint: hint } : {}),
       });
     } catch (e) {
       console.error('silentRefresh: request error', e);
+      requestInProgress = false;
       if (refreshResolver) refreshResolver(false);
     }
   });
@@ -340,6 +350,8 @@ export function getAuthState(): AuthState {
 // --- 内部関数 ---
 
 function handleTokenResponse(response: TokenResponse): void {
+  requestInProgress = false; // ロックを解除
+  
   if (response.error) {
     console.error('Token error:', response.error);
     if (refreshResolver) refreshResolver(false);

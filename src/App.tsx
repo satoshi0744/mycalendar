@@ -64,19 +64,16 @@ function App() {
 
     // スマホ対応: バックグラウンドから復帰した時に自動で最新化する
     const handleResume = () => {
-      if (document.visibilityState === 'visible' || document.hasFocus()) {
-        console.log('App resumed: checking auth and refreshing data...');
+      if (document.visibilityState === 'visible') {
         const state = getAuthState();
         if (state.isSignedIn) {
+          // すでにログイン中なら、バックグラウンドで最新データを取得
           refresh();
         } else if (import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-          // トークンが切れている場合はサイレント更新を試みる
-          silentRefresh().then(success => {
-            if (success && !loading) {
-              refresh();
-              syncYearData(false);
-            }
-          });
+          // トークンが切れている場合は、裏側でサイレント更新を試みるだけにする
+          // ここでrefreshを呼ぶと、真っ白な状態で止まるリスクがあるため、
+          // 更新が成功した後の onAuthStateChange に任せる
+          silentRefresh().catch(() => {});
         }
       }
     };

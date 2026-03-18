@@ -11,6 +11,7 @@ localforage.config({
 });
 
 const VISIBILITY_STORAGE_KEY = 'calendar_visibility_v2';
+const VISIBILITY_SETTINGS_KEY = 'calendar_visibility_settings_persistent'; // 強固なバックアップ用
 const DEFAULT_CALENDAR_KEY = 'default_calendar_id_v2';
 const CALENDARS_CACHE_KEY = 'calendars_v2';
 const LAST_SYNC_KEY = 'last_sync_timestamp';
@@ -37,18 +38,27 @@ async function saveVisibility(calendars: CalendarInfo[]): Promise<void> {
     for (const c of calendars) {
       map[c.id] = c.visible;
     }
-    await localforage.setItem(VISIBILITY_STORAGE_KEY, map);
+    // 二重に保存して、片方が消えても復元できるようにする
+    await Promise.all([
+      localforage.setItem(VISIBILITY_STORAGE_KEY, map),
+      localforage.setItem(VISIBILITY_SETTINGS_KEY, map)
+    ]);
   } catch { /* ignore */ }
 }
 
 /** 表示/非表示設定を復元 */
 async function restoreVisibility(calendars: CalendarInfo[]): Promise<CalendarInfo[]> {
   try {
-    const map = await localforage.getItem<Record<string, boolean>>(VISIBILITY_STORAGE_KEY);
+    // まず標準キー、ダメならバックアップキーから読み込む
+    let map = await localforage.getItem<Record<string, boolean>>(VISIBILITY_STORAGE_KEY);
+    if (!map) {
+      map = await localforage.getItem<Record<string, boolean>>(VISIBILITY_SETTINGS_KEY);
+    }
+    
     if (map) {
       return calendars.map(c => ({
         ...c,
-        visible: map[c.id] !== undefined ? map[c.id] : c.visible,
+        visible: map![c.id] !== undefined ? map![c.id] : c.visible,
       }));
     }
   } catch { /* ignore */ }
