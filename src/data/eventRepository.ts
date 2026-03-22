@@ -13,7 +13,7 @@
 import type { AppEvent, CalendarInfo } from './types';
 import { fetchEvents, fetchCalendarList, searchEvents as searchApiEvents } from '../api/calendarClient';
 import { fetchArchivesForYears } from '../api/driveClient';
-import { getArchivesFromCache, saveArchiveToCache, mergeArchiveToCache } from './cacheStorage';
+import { getArchivesFromCache, saveArchiveToCache, mergeArchiveToCache, removeEventsFromAllCaches } from './cacheStorage';
 
 /** アーカイブとAPIの境界日（GASのアーカイブ仕様に合わせる: 今年の1年前の1月1日） */
 function getApiBoundary(): Date {
@@ -51,15 +51,28 @@ export async function getEventsForRange(
   if (needsApi) {
     const apiMin = timeMin > boundary ? timeMin : boundary;
     const apiPromise = fetchEvents(calendarIds, apiMin, timeMax).then(events => {
+      // 1. キャンセルされたイベントを抽出し、全年のキャッシュからパージする
+      const cancelledIds = events.filter(e => e.status === 'cancelled').map(e => `${e.calendarId}__${e.id}`);
+      if (cancelledIds.length > 0) {
+        removeEventsFromAllCaches(cancelledIds);
+      }
+
       // 取得した直近データもローカルの年別キャッシュに保存（マージ）する
+      // 重要: 取得範囲内の「すべての年」に対してマージ処理を走らせることで、
+      // Google側で削除された予定（APIから返らなくなった予定）もキャッシュから消えるようにする。
       const eventsByYear = new Map<number, AppEvent[]>();
       for (const e of events) {
+        if (e.status === 'cancelled') continue; // パージ済みなので年別マージには渡さない
         const y = e.start.getFullYear();
         if (!eventsByYear.has(y)) eventsByYear.set(y, []);
         eventsByYear.get(y)!.push(e);
       }
-      for (const [year, yearEvents] of eventsByYear.entries()) {
-        mergeArchiveToCache(year, yearEvents);
+      
+      const startY = apiMin.getFullYear();
+      const endY = timeMax.getFullYear();
+      for (let y = startY; y <= endY; y++) {
+        const yearEvents = eventsByYear.get(y) || [];
+        mergeArchiveToCache(y, yearEvents, { min: apiMin, max: timeMax }, calendarIds);
       }
       return events;
     });
@@ -69,7 +82,8 @@ export async function getEventsForRange(
   // 2. アーカイブ/キャッシュから取得
   if (archiveYears.length > 0) {
     // まずはキャッシュから取得（即時）
-    const cachedEvents = getArchivesFromCache(archiveYears);
+    // キャッシュ由来であることを示すフラグを付与
+    const cachedEvents = getArchivesFromCache(archiveYears).map(e => ({ ...e, isFromCache: true }));
     
     // キャッシュがない年があるか確認
     const cachedYears = new Set(cachedEvents.map(e => e.start.getFullYear()));
@@ -88,7 +102,8 @@ export async function getEventsForRange(
         for (const year of missingYears) {
           saveArchiveToCache(year, eventsByYear.get(year) || []);
         }
-        return result.events;
+        // Driveから取得したものもキャッシュ由来扱い（初回以降はキャッシュに乗るため）
+        return result.events.map(e => ({ ...e, isFromCache: true }));
       }).catch(err => {
         console.warn('Drive fetch error:', err);
         return [] as AppEvent[];
@@ -97,7 +112,7 @@ export async function getEventsForRange(
       fetchPromises.push(drivePromise);
     }
 
-    // すでにあるキャッシュは即座に結果に含めるため、Promise.resolve でラップ
+    // すでにあるキャッシュは即座に結果に含める
     if (cachedEvents.length > 0) {
       fetchPromises.push(Promise.resolve(cachedEvents));
     }
@@ -114,11 +129,17 @@ export async function getEventsForRange(
       return inRange && calendarMatch;
     });
 
-    return deduplicateAndSort(filteredEvents);
+    // API取得範囲を特定して、その範囲のキャッシュデータは信用しない（Source of Truth）
+    const apiRange = needsApi ? { 
+      min: timeMin > boundary ? timeMin : boundary, 
+      max: timeMax 
+    } : undefined;
+
+    return deduplicateAndSort(filteredEvents, apiRange);
   } catch (err) {
     console.warn('getEventsForRange fallback to local only due to error:', err);
     // 全体のフェッチが失敗（通信エラー等）した場合、すでに取得済みのキャッシュ分だけでも返す
-    const cachedEvents = getArchivesFromCache(archiveYears);
+    const cachedEvents = getArchivesFromCache(archiveYears).map(e => ({ ...e, isFromCache: true }));
     return deduplicateAndSort(cachedEvents.filter(e => {
       const inRange = e.start >= timeMin && e.start <= timeMax;
       const calendarMatch = calendarIds.length === 0 || calendarIds.includes(e.calendarId);
@@ -149,9 +170,9 @@ export async function searchEventsAcrossAll(
   // 1. API 検索（オンライン時のみ成功する）
   searchPromises.push(searchApiEvents(calendarIds, query).catch(() => []));
 
-  // 2. ローカルキャッシュ（5年分）を検索
+  // 2. ローカルキャッシュ（5年分）を検索（これもキャッシュ扱い）
   const cacheSearchPromise = (async () => {
-    const allCached = getArchivesFromCache(archiveYears);
+    const allCached = getArchivesFromCache(archiveYears).map(e => ({ ...e, isFromCache: true }));
     const lowerQuery = query.toLowerCase();
     return allCached.filter(e => 
       (e.title?.toLowerCase().includes(lowerQuery) || 
@@ -168,22 +189,30 @@ export async function searchEventsAcrossAll(
 
 /**
  * イベントを重複排除し、開始日時でソートする。
+ * apiRange が指定された場合、その範囲内のキャッシュ(isFromCache)データは無視する（APIを絶対の正とする）。
  */
-function deduplicateAndSort(events: AppEvent[]): AppEvent[] {
+function deduplicateAndSort(events: AppEvent[], apiRange?: { min: Date; max: Date }): AppEvent[] {
   const map = new Map<string, AppEvent>();
 
-  // アーカイブ(cache)を先に登録し、APIのデータで上書きすることで 最新を優先
-  const archiveEvents = events.filter(e => e.source === 'archive');
-  const apiEvents = events.filter(e => e.source === 'api');
+  for (const e of events) {
+    if (e.status === 'cancelled') continue;
 
-  for (const e of archiveEvents) {
-    map.set(`${e.calendarId}__${e.id}`, e);
-  }
-  for (const e of apiEvents) {
-    map.set(`${e.calendarId}__${e.id}`, e);
+    // キャッシュ由来のデータで、かつAPI取得範囲内のものはスキップする
+    // これにより、Gカレンダー側で削除された予定がキャッシュから復活するのを防ぐ
+    // 重なり判定: イベントの終了が範囲の開始以降 ＆ イベントの開始が範囲の終了以前
+    if (e.isFromCache && apiRange && e.end >= apiRange.min && e.start <= apiRange.max) {
+      continue;
+    }
+    
+    const idKey = `${e.calendarId}__${e.id}`;
+    const existing = map.get(idKey);
+
+    // 重複時は API (isFromCache=false/undefined) を優先
+    if (!existing || (!e.isFromCache && existing.isFromCache)) {
+      map.set(idKey, e);
+    }
   }
 
-  return [...map.values()].sort(
-    (a, b) => (a.start?.getTime() || 0) - (b.start?.getTime() || 0)
-  );
+  return [...map.values()]
+    .sort((a, b) => (a.start?.getTime() || 0) - (b.start?.getTime() || 0));
 }

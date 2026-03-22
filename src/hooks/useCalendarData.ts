@@ -170,13 +170,26 @@ export function useCalendarData(): UseCalendarDataReturn {
         const baseMap = new Map<string, AppEvent>();
         // 既存のイベントをマップに展開
         for (const e of prev) {
+          // 今回の取得範囲内（start 〜 end）に重なる既存イベントは一旦除外
+          // これにより、Google側で消えたイベントが state に残り続けるのを防ぐ
+          // 重なり判定: イベントの終了が範囲の開始以降 ＆ イベントの開始が範囲の終了以前
+          if (e.end >= start && e.start <= end) {
+            continue;
+          }
           baseMap.set(`${e.calendarId}__${e.id}`, e);
         }
-        // 新しく取得したイベントで上書き
+        // 新しく取得したイベントを追加（または他期間のものを上書き）
         for (const e of fetchedEvents) {
-          baseMap.set(`${e.calendarId}__${e.id}`, e);
+          const idKey = `${e.calendarId}__${e.id}`;
+          if (e.status === 'cancelled') {
+            baseMap.delete(idKey);
+          } else {
+            baseMap.set(idKey, e);
+          }
         }
-        return Array.from(baseMap.values()).sort((a, b) => a.start.getTime() - b.start.getTime());
+        return Array.from(baseMap.values())
+          .filter(e => e.status !== 'cancelled')
+          .sort((a, b) => a.start.getTime() - b.start.getTime());
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : '予定の取得に失敗しました');
@@ -225,8 +238,14 @@ export function useCalendarData(): UseCalendarDataReturn {
         setEvents(prev => {
           const map = new Map<string, AppEvent>();
           for (const e of prev) map.set(`${e.calendarId}__${e.id}`, e);
-          for (const e of cached) map.set(`${e.calendarId}__${e.id}`, e);
-          return Array.from(map.values()).sort((a, b) => a.start.getTime() - b.start.getTime());
+          for (const e of cached) {
+            const idKey = `${e.calendarId}__${e.id}`;
+            if (e.status === 'cancelled') map.delete(idKey);
+            else map.set(idKey, e);
+          }
+          return Array.from(map.values())
+            .filter(e => e.status !== 'cancelled')
+            .sort((a, b) => a.start.getTime() - b.start.getTime());
         });
         return;
       }
@@ -245,15 +264,28 @@ export function useCalendarData(): UseCalendarDataReturn {
         // 各年ごとに順次取得してキャッシュを構築
         for (const year of years) {
           const start = new Date(year, 0, 1);
-          const end = new Date(year, 11, 31, 23, 59, 59);
+          const end = new Date(year, 11, 31, 23, 59, 59, 999);
           // 内部で Drive or API から取得して mergeArchiveToCache される
           const fetched = await getEventsForRange(start, end, visibleIds);
           
           setEvents(prev => {
             const map = new Map<string, AppEvent>();
-            for (const e of prev) map.set(`${e.calendarId}__${e.id}`, e);
-            for (const e of fetched) map.set(`${e.calendarId}__${e.id}`, e);
-            return Array.from(map.values()).sort((a, b) => a.start.getTime() - b.start.getTime());
+            // 既存のステートから同期範囲(year単位)に重なるものを除外して引き継ぐ
+            for (const e of prev) {
+              if (e.end >= start && e.start <= end) {
+                continue; // 同期範囲の既存データは一旦クリア（引き算）
+              }
+              map.set(`${e.calendarId}__${e.id}`, e);
+            }
+            // 取得した新しいデータをマージ（上書き・追加）
+            for (const e of fetched) {
+              const idKey = `${e.calendarId}__${e.id}`;
+              if (e.status === 'cancelled') map.delete(idKey);
+              else map.set(idKey, e);
+            }
+            return Array.from(map.values())
+              .filter(e => e.status !== 'cancelled')
+              .sort((a, b) => a.start.getTime() - b.start.getTime());
           });
         }
       }
@@ -286,7 +318,7 @@ export function useCalendarData(): UseCalendarDataReturn {
       console.warn('refresh failed:', e);
     }
     fetchData();
-    syncYearData(false); // 低頻度での同期
+    syncYearData(true); // 手動更新時は強制同期（削除イベントを確実に検知）
   }, [fetchData, syncYearData]);
 
   return {

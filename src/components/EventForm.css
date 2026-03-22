@@ -134,6 +134,12 @@
   line-height: 1.5;
 }
 
+.event-form-view-source {
+  font-size: 12px;
+  color: #70757a;
+  margin-left: 4px;
+}
+
 .event-form-view-desc {
   white-space: pre-wrap;
   word-break: break-all;
@@ -201,6 +207,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap; /* 小さな画面で折り返せるようにする */
 }
 
 .event-form-row label {
@@ -221,6 +228,8 @@
   background: var(--surface);
   outline: none;
   transition: border-color 0.2s;
+  flex: 1; /* 幅を柔軟にする */
+  min-width: 80px;
 }
 
 .event-form-row input[type="time"]:focus {
@@ -236,8 +245,9 @@
   border-radius: 8px;
   background: var(--surface);
   transition: border-color 0.2s;
-  height: 34px; /* input[type="time"] と高さを合わせる目安 */
-  width: 170px;
+  height: 34px;
+  flex: 1.5; /* 時間よりも少し幅を広く取る */
+  min-width: 140px;
   overflow: hidden;
 }
 
@@ -249,19 +259,19 @@
 .event-form-date-display {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 6px 8px; /* パディングを少し詰める */
   width: 100%;
-  pointer-events: none; /* 下のinputをクリックさせる */
+  pointer-events: none;
 }
 
 .event-form-date-text {
-  font-size: 14px;
+  font-size: 13px; /* 少し小さくしてはみ出しを防ぐ */
   color: var(--text-primary);
 }
 
 .event-form-dow {
-  font-size: 14px;
-  margin-left: 4px;
+  font-size: 12px;
+  margin-left: 2px;
 }
 
 .event-form-dow { /* デフォルト */
@@ -277,8 +287,8 @@
 }
 
 .event-form-calendar-icon {
-  margin-left: auto; /* 右端に寄せる */
-  font-size: 14px;
+  margin-left: auto;
+  font-size: 12px;
   opacity: 0.6;
 }
 
@@ -289,7 +299,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  opacity: 0; /* 完全に透明 */
+  opacity: 0;
   cursor: pointer;
 }
 
@@ -322,6 +332,7 @@
   font-family: inherit;
   transition: border-color 0.2s;
   resize: vertical;
+  min-width: 0; /* はみ出し防止 */
 }
 
 .event-form-field input:focus,
@@ -378,19 +389,19 @@
   justify-content: flex-end;
   padding: 12px 16px 16px;
   border-top: 1px solid var(--border);
-  flex-wrap: wrap; /* ボタンが入りきらない場合に折り返す */
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .event-form-footer-right {
   display: flex;
   gap: 8px;
-  width: 100%; /* スマホでボタンを横に並べやすく、かつ収まりを良くする */
+  width: 100%;
   justify-content: flex-end;
 }
 
 .event-form-cancel-btn {
-  padding: 8px 16px;
+  padding: 8px 12px; /* パディングを少し縮小 */
   border: 1px solid var(--border);
   border-radius: 8px;
   background: transparent;
@@ -398,6 +409,9 @@
   font-size: 14px;
   cursor: pointer;
   transition: background 0.15s;
+  flex: 1; /* 横幅を均等に */
+  max-width: 120px;
+  text-align: center;
 }
 
 .event-form-cancel-btn:hover {
@@ -405,7 +419,7 @@
 }
 
 .event-form-save-btn {
-  padding: 8px 20px;
+  padding: 8px 12px; /* パディングを少し縮小 */
   border: none;
   border-radius: 8px;
   background: var(--primary);
@@ -414,6 +428,9 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
+  flex: 1; /* 横幅を均等に */
+  max-width: 120px;
+  text-align: center;
 }
 
 .event-form-save-btn:hover {

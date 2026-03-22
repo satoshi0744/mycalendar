@@ -15,6 +15,9 @@ export interface AppEvent {
   source: "api" | "archive";
   /** イベント個別に設定された色（未設定ならnull、カレンダーの色を使う） */
   eventColor: string | null;
+  /** 削除（キャンセル）されたイベントかどうか / 詳細ステータス */
+  status?: 'confirmed' | 'tentative' | 'cancelled';
+  isFromCache?: boolean;
 }
 
 /** カレンダー情報 */

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { AuthState, AppEvent } from './data/types';
-import { initAuth, signIn, signOut, onAuthStateChange, getAuthState, getSavedLoginHint } from './auth/GoogleAuth';
+import { initAuth, signIn, signOut, onAuthStateChange, getAuthState, getSavedLoginHint, silentRefresh } from './auth/GoogleAuth';
 import { useCalendarData } from './hooks/useCalendarData';
 import YearView from './components/YearView';
 import MonthView from './components/MonthView';
@@ -53,7 +53,7 @@ function App() {
       // initAuth内で完了した初回の状態変更時のみデータを取得する
       if (state.isSignedIn && !loading) {
         refresh(); // 直近データを取得
-        syncYearData(false).catch(() => {}); // 過去分の同期を試みる
+        syncYearData(false).catch(() => {}); // 起動時は24時間ルールで同期（自動）
       }
     });
 
@@ -65,12 +65,16 @@ function App() {
     const handleResume = () => {
       if (document.visibilityState === 'visible') {
         const state = getAuthState();
+        const hint = getSavedLoginHint();
         // ログイン済みならバックグラウンドで予定を最新化する。
-        // 未ログイン時の自動更新（silentRefresh）は、API通信時の401エラー（authFetchの自動リフレッシュ）
-        // またはユーザーの明示的なログイン操作に任せる。
-        // これにより、画面復帰時の不必要な認証ポップアップの連鎖を防ぐ。
         if (state.isSignedIn) {
           refresh();
+        } else if (hint && !loading) {
+          // 未ログインだがヒントがある場合、バックグラウンドで自動再ログインを試みる
+          console.log('App: Resumed and attempting silent re-auth for:', hint);
+          silentRefresh().then(success => {
+            if (success) refresh();
+          }).catch(() => {});
         }
       }
     };
@@ -306,7 +310,7 @@ function App() {
                 <span className="sync-status-icon">📦</span>
                 <span>最新2年分の同期完了</span>
                 <span className="sync-status-time">
-                  {new Date(lastSyncTime).toLocaleDateString()}
+                  {new Date(lastSyncTime).toLocaleDateString()} {new Date(lastSyncTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                 </span>
               </div>
             </div>
@@ -331,7 +335,7 @@ function App() {
               <div className="loading-overlay">
                 <div className="loading-message">
                   <span className="loading-spinner">⌛</span>
-                  アーカイブから読み込み中...
+                  読み込み中...
                 </div>
               </div>
             </>

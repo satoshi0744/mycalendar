@@ -137,7 +137,7 @@ async function fetchCalendarEvents(
       maxResults: '2500',
       singleEvents: 'true',
       orderBy: 'startTime',
-      showDeleted: 'false',
+      showDeleted: 'true',
     });
     if (pageToken) params.set('pageToken', pageToken);
 
@@ -203,7 +203,7 @@ async function searchCalendarEvents(
       maxResults: '500', // 一度の取得件数を制限
       singleEvents: 'true',
       orderBy: 'startTime', // start time ascending (global sort handled in caller)
-      showDeleted: 'false',
+      showDeleted: 'true',
     });
     if (pageToken) params.set('pageToken', pageToken);
 
@@ -316,10 +316,18 @@ export async function updateEvent(
 export async function deleteEvent(calendarId: string, eventId: string): Promise<void> {
   const encodedCalId = encodeURIComponent(calendarId);
   const encodedEventId = encodeURIComponent(eventId);
-  await authFetch(
-    `${BASE_URL}/calendars/${encodedCalId}/events/${encodedEventId}`,
-    { method: 'DELETE' },
-  );
+  try {
+    await authFetch(
+      `${BASE_URL}/calendars/${encodedCalId}/events/${encodedEventId}`,
+      { method: 'DELETE' },
+    );
+  } catch (err: any) {
+    if (err.message && err.message.includes('410')) {
+      console.log('Event is already deleted on server (410). Treating as success.');
+      return;
+    }
+    throw err;
+  }
 }
 
 // --- 内部ヘルパー ---
@@ -344,7 +352,21 @@ const EVENT_COLORS: Record<string, string> = {
 };
 
 function convertApiEvent(item: any, calendarId: string): AppEvent | null {
-  if (item.status === 'cancelled') return null;
+  if (item.status === 'cancelled') {
+    return {
+      id: item.id,
+      calendarId,
+      title: '',
+      description: '',
+      location: '',
+      start: new Date(0),
+      end: new Date(0),
+      isAllDay: false,
+      source: 'api',
+      eventColor: null,
+      status: 'cancelled',
+    };
+  }
 
   const isAllDay = !!(item.start?.date);
   const startStr = isAllDay ? item.start.date : item.start?.dateTime;

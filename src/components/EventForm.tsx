@@ -229,6 +229,7 @@ export default function EventForm({
                 <span className="event-form-view-cal-dot" style={{ backgroundColor: displayColor }} />
                 <span className="event-form-view-text">
                   {calendars.find(c => c.id === calendarId)?.name || ''}
+                  <span className="event-form-view-source"> ({event?.source === 'api' ? '最新' : '保存済'})</span>
                 </span>
               </div>
             </div>

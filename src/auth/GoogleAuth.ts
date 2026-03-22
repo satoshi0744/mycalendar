@@ -52,6 +52,17 @@ declare global {
           }) => TokenClient;
           revoke: (token: string, callback?: () => void) => void;
         };
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: any) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+          }) => void;
+          prompt: (callback?: (notification: any) => void) => void;
+          cancel: () => void;
+          disableAutoSelect: () => void;
+        };
       };
     };
   }
@@ -183,13 +194,48 @@ export function initAuth(clientId: string): void {
     ...(hint ? { hint, login_hint: hint } : {}),
   });
 
+  // Google One Tap (ID Services) の初期化
+  window.google.accounts.id.initialize({
+    client_id: clientId,
+    callback: handleOneTapResponse,
+    auto_select: true, // 自動ログインを試みる
+  });
+
   // セッションが復元されている場合はリスナーに通知
   if (isAuthenticated()) {
     notifyListeners();
-  } else if (hint) {
-    // トークン期限切れだがlogin_hintがある → バックグラウンドで自動再認証
-    // これによりログイン画面をスキップできる
-    silentRefresh().catch(() => {});
+  } else {
+    // トークンはないがヒントはある、あるいは One Tap を試みる
+    if (hint) {
+      silentRefresh().catch(() => {});
+    }
+    // One Tap プロンプトを表示（バックグラウンドで自動的に処理される）
+    window.google.accounts.id.prompt((notification) => {
+      console.log('One Tap notification:', notification.getMomentType());
+    });
+  }
+}
+
+/**
+ * Google One Tap のレスポンス処理（IDトークンからメールアドレスを取得し、アクセストークンをサイレント取得する）
+ */
+function handleOneTapResponse(response: any): void {
+  console.log('One Tap response received');
+  // IDトークンをデコードしてメールアドレスを取得（簡易的なデコード）
+  try {
+    const base64Url = response.credential.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    const payload = JSON.parse(jsonPayload);
+    
+    if (payload.email) {
+      console.log('One Tap: Recognized user', payload.email);
+      saveLoginHint(payload.email);
+      // 有効なアカウントが認識されたので、アクセストークンをサイレント取得
+      silentRefresh().catch(() => {});
+    }
+  } catch (e) {
+    console.error('One Tap decode error:', e);
   }
 }
 
@@ -197,14 +243,24 @@ export function initAuth(clientId: string): void {
  * ログインを開始する（ポップアップが表示される）。
  * 保存されたアカウントがあればアカウント選択をスキップする。
  */
-export function signIn(): void {
+export async function signIn(): Promise<void> {
   // すでに何らかの認証処理（自動リフレッシュ等）が進行中なら重複させない
   if (requestInProgress) {
     console.log('signIn: authentication is already in progress. skipping.');
     return;
   }
 
-  // 未初期化の場合はその場で初期化を試みる
+  // まずはサイレント（画面なし）での復帰を試みる
+  if (getSavedLoginHint()) {
+    console.log('signIn: Trying silent refresh first...');
+    const success = await silentRefresh();
+    if (success) {
+      console.log('signIn: Silent refresh succeeded. No popup needed.');
+      return;
+    }
+  }
+
+  // サイレント失敗またはヒントなしの場合のみポップアップを表示
   if (!tokenClient) {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (clientId) {
@@ -217,7 +273,6 @@ export function signIn(): void {
 
   const hint = getSavedLoginHint();
   
-  // tokenClientが存在しない（初期化失敗）場合は何もしない（クラッシュ防止）
   if (!tokenClient) {
     console.warn('signIn: tokenClient not ready.');
     return;
@@ -225,7 +280,7 @@ export function signIn(): void {
 
   requestInProgress = true;
   tokenClient.requestAccessToken({
-    prompt: '',
+    prompt: '', // login_hintがあればGoogleがよしなにスキップしてくれることを期待（空文字または省略）
     ...(hint ? { login_hint: hint } : {}),
   });
 }
@@ -292,7 +347,7 @@ export function silentRefresh(): Promise<boolean> {
 }
 
 /**
- * ログアウトする（トークンを破棄）。
+ * ログアウトする（トークンとログインの記憶を破棄）。
  */
 export function signOut(): void {
   const g = typeof window !== 'undefined' ? window.google : null;
@@ -303,7 +358,14 @@ export function signOut(): void {
   tokenExpiresAt = 0;
   userInfo = { name: null, email: null };
   clearSession();
-  // login_hintは残す（次回ログイン時に使う）
+  
+  // アカウント変更を行えるように、ログインの記憶（login_hint）も破棄する
+  try {
+    localStorage.removeItem(STORAGE_KEY_HINT);
+  } catch {
+    // ignore
+  }
+  
   notifyListeners();
 }
 
