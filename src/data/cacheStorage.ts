@@ -63,8 +63,8 @@ export function removeEventsFromAllCaches(idKeys: string[]): void {
   const idSet = new Set(idKeys);
   try {
     const currentYear = new Date().getFullYear();
-    // 過去5年〜未来1年程度のキャッシュを走査して削除
-    const years = Array.from({length: 7}, (_, i) => currentYear + 1 - i);
+    // 過去11年〜未来1年程度のキャッシュを走査して削除（計12年分）
+    const years = Array.from({length: 12}, (_, i) => currentYear + 1 - i);
     for (const year of years) {
       const existing = getArchiveFromCache(year);
       if (existing) {

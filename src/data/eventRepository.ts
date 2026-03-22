@@ -156,21 +156,21 @@ export async function getAllCalendars(): Promise<CalendarInfo[]> {
 }
 
 /**
- * 全期間（API + 5年分キャッシュ）からイベントを検索する。
+ * 全期間（API + 12年分キャッシュ）からイベントを検索する。
  */
 export async function searchEventsAcrossAll(
   calendarIds: string[],
   query: string,
 ): Promise<AppEvent[]> {
   const currentYear = new Date().getFullYear();
-  const archiveYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const archiveYears = Array.from({ length: 12 }, (_, i) => currentYear - i);
 
   const searchPromises: Promise<AppEvent[]>[] = [];
 
   // 1. API 検索（オンライン時のみ成功する）
   searchPromises.push(searchApiEvents(calendarIds, query).catch(() => []));
 
-  // 2. ローカルキャッシュ（5年分）を検索（これもキャッシュ扱い）
+  // 2. ローカルキャッシュ（12年分）を検索（これもキャッシュ扱い）
   const cacheSearchPromise = (async () => {
     const allCached = getArchivesFromCache(archiveYears).map(e => ({ ...e, isFromCache: true }));
     const lowerQuery = query.toLowerCase();
