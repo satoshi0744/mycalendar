@@ -19,7 +19,7 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 function App() {
   const [authState, setAuthState] = useState<AuthState>(getAuthState());
   const [authLoading, setAuthLoading] = useState(true); // 認証復元中のローディング
-  const [sidebarOpen, setSidebarOpen] = useState(false); // サイドバー開閉（統一）
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth > 768); // サイドバー開閉（PCではデフォルト開く）
   const [showSearch, setShowSearch] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);

@@ -158,7 +158,9 @@ export default function MonthView({ currentDate, events, calendars, error, onDat
                           if (onEventClick) onEventClick(event);
                         }}
                       >
-                        {/* 時刻表示は削除し、タイトルのみにする */}
+                        {!event.isAllDay && (
+                          <span className="month-event-time">{formatTime(event.start)}</span>
+                        )}
                         <span className="month-event-title">{event.title}</span>
                       </div>
                       );
@@ -181,4 +183,9 @@ export default function MonthView({ currentDate, events, calendars, error, onDat
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+/** 時刻を「H:MM」形式にフォーマットする */
+function formatTime(d: Date): string {
+  return `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
 }
