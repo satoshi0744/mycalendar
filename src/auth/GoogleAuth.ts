@@ -79,11 +79,36 @@ let userInfo: { name: string | null; email: string | null } = { name: null, emai
 let refreshPromise: Promise<boolean> | null = null;
 let refreshResolver: ((success: boolean) => void) | null = null;
 let requestInProgress: boolean = false; // ログイン画面等の重複表示を防ぐロック
+let requestLockTimer: ReturnType<typeof setTimeout> | null = null; // ロックの自動解除タイマー
 
 function clearRefreshState(): void {
   refreshPromise = null;
   refreshResolver = null;
   requestInProgress = false;
+  if (requestLockTimer) {
+    clearTimeout(requestLockTimer);
+    requestLockTimer = null;
+  }
+}
+
+/** ロックを取得し、20秒後に自動解除するタイマーを開始する */
+function acquireRequestLock(): void {
+  requestInProgress = true;
+  if (requestLockTimer) clearTimeout(requestLockTimer);
+  requestLockTimer = setTimeout(() => {
+    console.warn('Request lock auto-released after 20s timeout');
+    requestInProgress = false;
+    requestLockTimer = null;
+  }, 20000);
+}
+
+/** ロックを解除する */
+function releaseRequestLock(): void {
+  requestInProgress = false;
+  if (requestLockTimer) {
+    clearTimeout(requestLockTimer);
+    requestLockTimer = null;
+  }
 }
 
 /**
@@ -278,7 +303,7 @@ export async function signIn(): Promise<void> {
     return;
   }
 
-  requestInProgress = true;
+  acquireRequestLock();
   tokenClient.requestAccessToken({
     prompt: '', // login_hintがあればGoogleがよしなにスキップしてくれることを期待（空文字または省略）
     ...(hint ? { login_hint: hint } : {}),
@@ -331,14 +356,14 @@ export function silentRefresh(): Promise<boolean> {
     // prompt: 'none' でバックグラウンド取得を強制（失敗時は即エラーが返る）
     try {
       console.log('Attempting silent refresh for:', hint);
-      requestInProgress = true;
+      acquireRequestLock();
       tokenClient!.requestAccessToken({
         prompt: 'none',
         ...(hint ? { login_hint: hint } : {}),
       });
     } catch (e) {
       console.error('silentRefresh: request error', e);
-      requestInProgress = false;
+      releaseRequestLock();
       if (refreshResolver) refreshResolver(false);
     }
   });
@@ -412,7 +437,7 @@ export function getAuthState(): AuthState {
 // --- 内部関数 ---
 
 function handleTokenResponse(response: TokenResponse): void {
-  requestInProgress = false; // ロックを解除
+  releaseRequestLock(); // ロックを解除
   
   if (response.error) {
     console.error('Token error:', response.error);

@@ -11,6 +11,7 @@ import CalendarList from './components/CalendarList';
 import EventForm from './components/EventForm';
 import SearchOverlay from './components/SearchOverlay';
 import { ReconnectButton } from './components/ReconnectButton';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
 import './App.css';
 
 // Google Cloud Console で取得したクライアントID
@@ -19,6 +20,7 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 function App() {
   const [authState, setAuthState] = useState<AuthState>(getAuthState());
   const [authLoading, setAuthLoading] = useState(true); // 認証復元中のローディング
+  const isOnline = useNetworkStatus(); // ネットワーク接続状態の監視
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth > 768); // サイドバー開閉（PCではデフォルト開く）
   const [showSearch, setShowSearch] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
@@ -238,14 +240,24 @@ function App() {
   }
 
   // オフライン・認証切れだが、キャッシュがある状態かどうか
-  const isOfflineMode = !authState.isSignedIn && !!loginHint;
+  const hasLoginHint = !!loginHint;
+  const isNetworkOffline = !isOnline && hasLoginHint; // WiFi等が切れている
+  const isSessionExpired = isOnline && !authState.isSignedIn && hasLoginHint; // ネットはあるがセッション切れ
+  const isOfflineMode = isNetworkOffline || isSessionExpired; // ヘッダーのスタイル用
 
   return (
     <div className="app">
-      {/* オフラインバナー */}
-      {isOfflineMode && (
-        <div className="offline-banner">
-          <span>☕ 現在オフラインです。手元にあるデータを表示しています。</span>
+      {/* ネットワークオフラインバナー */}
+      {isNetworkOffline && (
+        <div className="offline-banner network-offline">
+          <span>❌ オフラインです。通信環境を確認してください。手元のデータを表示しています。</span>
+        </div>
+      )}
+
+      {/* セッション切れバナー */}
+      {isSessionExpired && (
+        <div className="offline-banner session-expired">
+          <span>🔑 セッションが切れました。再接続して最新データを取得してください。</span>
           <button onClick={signIn} className="offline-retry-btn">再接続する</button>
         </div>
       )}

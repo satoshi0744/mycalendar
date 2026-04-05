@@ -535,9 +535,8 @@ body {
   transform: scale(0.95);
 }
 
-/* --- Offline Banner --- */
+/* --- Offline / Session Expired Banners --- */
 .offline-banner {
-  background-color: var(--warning);
   color: #fff;
   padding: 8px 16px;
   font-size: 14px;
@@ -547,6 +546,16 @@ body {
   z-index: 1000;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   font-weight: 500;
+}
+
+/* ネットワーク切断（WiFi等が切れている） */
+.offline-banner.network-offline {
+  background-color: var(--error);
+}
+
+/* セッション切れ（ネットはあるがGoogleログインが切れた） */
+.offline-banner.session-expired {
+  background-color: #5f6368;
 }
 
 .offline-retry-btn {
