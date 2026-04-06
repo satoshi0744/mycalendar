@@ -58,7 +58,7 @@
 
 .day-hour-row {
   display: flex;
-  height: 60px;
+  height: 80px;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -119,8 +119,11 @@
   font-weight: 500;
   color: var(--text-primary);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
 }
 
 .day-event-location {

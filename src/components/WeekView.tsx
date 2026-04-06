@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import type { AppEvent, CalendarInfo } from '../data/types';
 import './WeekView.css';
 
@@ -17,6 +17,8 @@ function isBeforeDay(a: Date, b: Date): boolean {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const HOUR_HEIGHT = 64; // 1時間あたりの高さ(px)
+const DEFAULT_SCROLL_HOUR = 6.5; // デフォルトのスクロール位置(6:30)
 
 /** 月曜始まりの曜日インデックス (月=0, 火=1, ... 日=6) */
 function getMondayBasedDay(d: Date): number {
@@ -79,6 +81,14 @@ function calculateOverlap(events: AppEvent[]) {
 
 export default function WeekView({ currentDate, events, calendars, onEventClick }: Props) {
   const today = new Date();
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // 週のビューが表示された時、6:30の位置に自動スクロール
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.scrollTop = DEFAULT_SCROLL_HOUR * HOUR_HEIGHT;
+    }
+  }, [currentDate]);
 
   // 週の日付配列（月曜始まり）
   const weekDates = useMemo(() => {
@@ -192,7 +202,7 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
       </div>
 
       {/* タイムグリッド */}
-      <div className="week-body">
+      <div className="week-body" ref={bodyRef}>
         {HOURS.map(hour => (
           <div key={hour} className="week-hour-row">
             <div className="week-time-gutter">
@@ -204,8 +214,8 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                   .filter(e => e.start.getHours() === hour)
                   .map((event, i) => {
                     const durationMinutes = (event.end.getTime() - event.start.getTime()) / 60000;
-                    const heightPx = Math.max(20, (durationMinutes / 60) * 48);
-                    const topOffset = (event.start.getMinutes() / 60) * 48;
+                    const heightPx = Math.max(20, (durationMinutes / 60) * HOUR_HEIGHT);
+                    const topOffset = (event.start.getMinutes() / 60) * HOUR_HEIGHT;
 
                     const layoutMap = layoutsByDay.get(di);
                     const layout = layoutMap?.get(event.id) || { column: 0, totalColumns: 1 };
