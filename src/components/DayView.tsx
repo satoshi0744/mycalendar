@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect } from 'react';
+import { usePinchZoom } from '../hooks/usePinchZoom';
 import type { AppEvent, CalendarInfo } from '../data/types';
 import './DayView.css';
 
@@ -17,8 +18,7 @@ function isBeforeDay(a: Date, b: Date): boolean {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const HOUR_HEIGHT = 80; // 1時間あたりの高さ(px)
-const DEFAULT_SCROLL_HOUR = 6.5; // デフォルトのスクロール位置(6:30)
+const DEFAULT_SCROLL_HOUR = 6.0; // デフォルトのスクロール位置(6:00)
 
 function calculateOverlap(events: AppEvent[]) {
   const sorted = [...events].sort((a, b) => {
@@ -73,13 +73,14 @@ function calculateOverlap(events: AppEvent[]) {
 
 export default function DayView({ currentDate, events, calendars, onEventClick }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
+  const { hourHeight, handleTouchStart, handleTouchMove, handleTouchEnd } = usePinchZoom(80);
 
-  // 日のビューが表示された時、6:30の位置に自動スクロール
+  // 日のビューが表示された時、6:00の位置に自動スクロール
   useEffect(() => {
     if (bodyRef.current) {
-      bodyRef.current.scrollTop = DEFAULT_SCROLL_HOUR * HOUR_HEIGHT;
+      bodyRef.current.scrollTop = DEFAULT_SCROLL_HOUR * hourHeight;
     }
-  }, [currentDate]);
+  }, [currentDate, hourHeight]);
   // カレンダーIDから色を引くマップ
   const colorMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -113,7 +114,13 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
   const dow = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'][currentDate.getDay()];
 
   return (
-    <div className="day-view">
+    <div 
+      className="day-view" 
+      style={{ '--hour-height': `${hourHeight}px` } as React.CSSProperties}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* 日付ヘッダー */}
       <div className="day-header">
         <span className="day-header-dow">{dow}</span>
@@ -153,8 +160,8 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
                 .filter(e => e.start.getHours() === hour)
                 .map((event, i) => {
                   const durationMinutes = (event.end.getTime() - event.start.getTime()) / 60000;
-                  const heightPx = Math.max(24, (durationMinutes / 60) * HOUR_HEIGHT);
-                  const topOffset = (event.start.getMinutes() / 60) * HOUR_HEIGHT;
+                  const heightPx = Math.max(24, (durationMinutes / 60) * hourHeight);
+                  const topOffset = (event.start.getMinutes() / 60) * hourHeight;
 
                   const layout = layoutMap.get(event.id) || { column: 0, totalColumns: 1 };
                   const leftPct = (100 / layout.totalColumns) * layout.column;
@@ -178,12 +185,12 @@ export default function DayView({ currentDate, events, calendars, onEventClick }
                         if (onEventClick) onEventClick(event);
                       }}
                     >
+                      <div className="day-event-title">{event.title}</div>
                       <div className="day-event-time">
                         {event.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                         {' - '}
                         {event.end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                       </div>
-                      <div className="day-event-title">{event.title}</div>
                       {event.location && (
                         <div className="day-event-location">📍 {event.location}</div>
                       )}

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect } from 'react';
+import { usePinchZoom } from '../hooks/usePinchZoom';
 import type { AppEvent, CalendarInfo } from '../data/types';
 import './WeekView.css';
 
@@ -17,8 +18,7 @@ function isBeforeDay(a: Date, b: Date): boolean {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const HOUR_HEIGHT = 64; // 1時間あたりの高さ(px)
-const DEFAULT_SCROLL_HOUR = 6.5; // デフォルトのスクロール位置(6:30)
+const DEFAULT_SCROLL_HOUR = 6.0; // デフォルトのスクロール位置(6:00)
 
 /** 月曜始まりの曜日インデックス (月=0, 火=1, ... 日=6) */
 function getMondayBasedDay(d: Date): number {
@@ -82,13 +82,14 @@ function calculateOverlap(events: AppEvent[]) {
 export default function WeekView({ currentDate, events, calendars, onEventClick }: Props) {
   const today = new Date();
   const bodyRef = useRef<HTMLDivElement>(null);
+  const { hourHeight, handleTouchStart, handleTouchMove, handleTouchEnd } = usePinchZoom(64); // 初期は64px
 
-  // 週のビューが表示された時、6:30の位置に自動スクロール
+  // 週のビューが表示された時、6:00の位置に自動スクロール
   useEffect(() => {
     if (bodyRef.current) {
-      bodyRef.current.scrollTop = DEFAULT_SCROLL_HOUR * HOUR_HEIGHT;
+      bodyRef.current.scrollTop = DEFAULT_SCROLL_HOUR * hourHeight;
     }
-  }, [currentDate]);
+  }, [currentDate, hourHeight]);
 
   // 週の日付配列（月曜始まり）
   const weekDates = useMemo(() => {
@@ -150,7 +151,13 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
     `${String(h).padStart(2, '0')}:00`;
 
   return (
-    <div className="week-view">
+    <div 
+      className="week-view"
+      style={{ '--hour-height': `${hourHeight}px` } as React.CSSProperties}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* 終日イベント領域 */}
       {allDayEvents.length > 0 && (
         <div className="week-allday-section">
@@ -214,8 +221,8 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                   .filter(e => e.start.getHours() === hour)
                   .map((event, i) => {
                     const durationMinutes = (event.end.getTime() - event.start.getTime()) / 60000;
-                    const heightPx = Math.max(20, (durationMinutes / 60) * HOUR_HEIGHT);
-                    const topOffset = (event.start.getMinutes() / 60) * HOUR_HEIGHT;
+                    const heightPx = Math.max(20, (durationMinutes / 60) * hourHeight);
+                    const topOffset = (event.start.getMinutes() / 60) * hourHeight;
 
                     const layoutMap = layoutsByDay.get(di);
                     const layout = layoutMap?.get(event.id) || { column: 0, totalColumns: 1 };
@@ -241,10 +248,10 @@ export default function WeekView({ currentDate, events, calendars, onEventClick 
                           if (onEventClick) onEventClick(event);
                         }}
                       >
+                        <span className="week-event-title">{event.title}</span>
                         <span className="week-event-time">
                           {event.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        <span className="week-event-title">{event.title}</span>
                       </div>
                     );
                   })}

@@ -113,7 +113,7 @@
 
 .week-hour-row {
   display: flex;
-  height: 64px;
+  height: var(--hour-height, 64px);
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -171,9 +171,12 @@
 }
 
 .week-event-time {
-  font-size: 10px;
-  font-weight: 600;
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
   color: var(--text-secondary);
+  line-height: 1.1;
+  margin-top: 2px;
 }
 
 .week-event-title {
@@ -184,4 +187,6 @@
   overflow: hidden;
   word-break: break-word;
   color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.2;
 }
