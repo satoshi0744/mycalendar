@@ -61,9 +61,16 @@ export default function MonthView({ currentDate, events, calendars, error, onDat
   const eventsByDate = useMemo(() => {
     const map = new Map<string, AppEvent[]>();
     for (const event of events) {
-      const key = formatDateKey(event.start);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(event);
+      // 開始日から終了日まで、各日にイベントを配置する（複数日イベント対応）
+      const startDay = new Date(event.start.getFullYear(), event.start.getMonth(), event.start.getDate());
+      const endDay = new Date(event.end.getFullYear(), event.end.getMonth(), event.end.getDate());
+      const cursor = new Date(startDay);
+      while (cursor <= endDay) {
+        const key = formatDateKey(cursor);
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(event);
+        cursor.setDate(cursor.getDate() + 1);
+      }
     }
     // 各日のイベントを「終日が先、そのあと開始時間順」にソート
     for (const [key, evs] of map.entries()) {

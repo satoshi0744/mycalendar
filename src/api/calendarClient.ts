@@ -380,8 +380,12 @@ function convertApiEvent(item: any, calendarId: string): AppEvent | null {
     eventColor = EVENT_COLORS[item.colorId];
   }
 
-  const startDate = new Date(startStr);
-  let endDate = new Date(endStr || startStr);
+  // All-Dayイベントの日付は "YYYY-MM-DD" 形式で返ってくる。
+  // new Date("YYYY-MM-DD") はUTCとして解釈されるため、JST環境では9時間ずれて
+  // 1日多く表示されるバグの原因になる。手動でパースしてローカルタイムゾーンの
+  // 午前0時として生成する。
+  const startDate = isAllDay ? parseDateLocal(startStr) : new Date(startStr);
+  let endDate = isAllDay ? parseDateLocal(endStr || startStr) : new Date(endStr || startStr);
 
   // Google Calendar APIのAll-Dayイベントは、endが「翌日の0時(exclusive)」で返ってくる。
   // MyCalendar内の表示ロジック（isAllDay時の日付比較など）を破綻させないため、
@@ -402,6 +406,15 @@ function convertApiEvent(item: any, calendarId: string): AppEvent | null {
     source: 'api',
     eventColor,
   };
+}
+
+/**
+ * "YYYY-MM-DD" 形式の文字列をローカルタイムゾーンの午前0時としてパースする。
+ * new Date("YYYY-MM-DD") はUTC扱いになるため、JST等では日付がずれる問題を回避する。
+ */
+function parseDateLocal(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
 }
 
 function formatDate(d: Date): string {
