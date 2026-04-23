@@ -43,6 +43,8 @@ function App() {
     syncing,
     error,
     lastSyncTime,
+    addOrUpdateLocalEvent,
+    removeLocalEvent,
   } = useCalendarData();
 
   useEffect(() => {
@@ -417,7 +419,14 @@ function App() {
           initialDate={eventFormDate}
           initialCalendarId={initialCalendarId}
           onClose={closeEventForm}
-          onSaved={refresh}
+          onSaved={(action, eventOrId) => {
+            if (action === 'delete') {
+              const { calendarId, eventId } = eventOrId as { calendarId: string; eventId: string };
+              removeLocalEvent(calendarId, eventId);
+            } else {
+              addOrUpdateLocalEvent(eventOrId as AppEvent);
+            }
+          }}
         />
       )}
     </div>

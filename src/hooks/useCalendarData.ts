@@ -81,6 +81,8 @@ interface UseCalendarDataReturn {
   syncYearData: (force?: boolean) => Promise<void>;
   syncing: boolean;
   lastSyncTime: number | null;
+  addOrUpdateLocalEvent: (event: AppEvent) => void;
+  removeLocalEvent: (calendarId: string, eventId: string) => void;
 }
 
 export function useCalendarData(): UseCalendarDataReturn {
@@ -321,6 +323,17 @@ export function useCalendarData(): UseCalendarDataReturn {
     syncYearData(true); // 手動更新時は強制同期（削除イベントを確実に検知）
   }, [fetchData, syncYearData]);
 
+  const addOrUpdateLocalEvent = useCallback((event: AppEvent) => {
+    setEvents(prev => {
+      const filtered = prev.filter(e => !(e.id === event.id && e.calendarId === event.calendarId));
+      return [...filtered, event].sort((a, b) => a.start.getTime() - b.start.getTime());
+    });
+  }, []);
+
+  const removeLocalEvent = useCallback((calendarId: string, eventId: string) => {
+    setEvents(prev => prev.filter(e => !(e.id === eventId && e.calendarId === calendarId)));
+  }, []);
+
   return {
     events,
     calendars,
@@ -337,6 +350,8 @@ export function useCalendarData(): UseCalendarDataReturn {
     syncYearData,
     syncing,
     lastSyncTime,
+    addOrUpdateLocalEvent,
+    removeLocalEvent,
   };
 }
 

@@ -30,8 +30,8 @@ interface Props {
   initialCalendarId?: string;
   /** フォームを閉じる */
   onClose: () => void;
-  /** 保存・削除後にデータを再読込する */
-  onSaved: () => void;
+  /** 保存・削除後にデータを親に渡す */
+  onSaved: (action: 'add' | 'update' | 'delete', eventOrId: AppEvent | { calendarId: string; eventId: string }) => void;
 }
 
 export default function EventForm({
@@ -104,13 +104,15 @@ export default function EventForm({
         colorId: colorId || undefined,
       };
 
+      let savedEvent: AppEvent;
       if (isEdit && event) {
-        await updateEvent(event.calendarId, event.id, eventData);
+        savedEvent = await updateEvent(event.calendarId, event.id, eventData);
+        onSaved('update', savedEvent);
       } else {
-        await createEvent(calendarId, eventData);
+        savedEvent = await createEvent(calendarId, eventData);
+        onSaved('add', savedEvent);
       }
 
-      onSaved();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存に失敗しました');
@@ -128,7 +130,7 @@ export default function EventForm({
 
     try {
       await deleteEvent(event.calendarId, event.id);
-      onSaved();
+      onSaved('delete', { calendarId: event.calendarId, eventId: event.id });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : '削除に失敗しました');

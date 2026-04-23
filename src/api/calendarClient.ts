@@ -277,12 +277,14 @@ export async function updateEvent(
     start?: Date;
     end?: Date;
     isAllDay?: boolean;
+    colorId?: string;
   },
 ): Promise<AppEvent> {
   const body: Record<string, unknown> = {};
   if (updates.title !== undefined) body.summary = updates.title;
   if (updates.description !== undefined) body.description = updates.description;
   if (updates.location !== undefined) body.location = updates.location;
+  if (updates.colorId !== undefined) body.colorId = updates.colorId;
 
   if (updates.start && updates.end) {
     if (updates.isAllDay) {
