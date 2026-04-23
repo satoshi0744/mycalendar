@@ -149,6 +149,8 @@ export default function MonthView({ currentDate, events, calendars, error, onDat
                   <div className="month-events">
                     {dayEvents.slice(0, maxDisplay).map((event, i) => {
                       const evColor = event.eventColor || colorMap.get(event.calendarId) || '#4285f4';
+                      // 複数日イベントの日数インジケータを計算
+                      const spanInfo = getMultiDaySpanInfo(event, date);
                       return (
                       <div
                         key={i}
@@ -169,6 +171,9 @@ export default function MonthView({ currentDate, events, calendars, error, onDat
                           <span className="month-event-time">{formatTime(event.start)}</span>
                         )}
                         <span className="month-event-title">{event.title}</span>
+                        {spanInfo && (
+                          <span className="month-event-span">{spanInfo.current}/{spanInfo.total}</span>
+                        )}
                       </div>
                       );
                     })}
@@ -190,6 +195,19 @@ export default function MonthView({ currentDate, events, calendars, error, onDat
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+/** 複数日にまたがるイベントの「n/total」情報を返す。1日イベントはnullを返す。 */
+function getMultiDaySpanInfo(event: AppEvent, cellDate: Date): { current: number; total: number } | null {
+  const startDay = new Date(event.start.getFullYear(), event.start.getMonth(), event.start.getDate());
+  const endDay = new Date(event.end.getFullYear(), event.end.getMonth(), event.end.getDate());
+  const totalMs = endDay.getTime() - startDay.getTime();
+  const totalDays = Math.round(totalMs / (24 * 60 * 60 * 1000)) + 1;
+  if (totalDays <= 1) return null;
+  const cellDay = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
+  const currentMs = cellDay.getTime() - startDay.getTime();
+  const currentDay = Math.round(currentMs / (24 * 60 * 60 * 1000)) + 1;
+  return { current: currentDay, total: totalDays };
 }
 
 /** 時刻を「H:MM」形式にフォーマットする */

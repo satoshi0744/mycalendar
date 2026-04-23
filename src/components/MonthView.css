@@ -156,6 +156,17 @@
   cursor: pointer;
 }
 
+/* 複数日イベントの日数インジケータ（例: 1/3） */
+.month-event-span {
+  font-size: 9px;
+  opacity: 0.8;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
 /* --- スマホ版 --- */
 @media (max-width: 768px) {
   /* セル内の余白を最小限に */
@@ -209,6 +220,10 @@
     padding: 0 2px;
     line-height: 1;
     margin-top: -1px;
+  }
+
+  .month-event-span {
+    font-size: 8px;
   }
 }
 
