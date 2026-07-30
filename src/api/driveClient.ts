@@ -146,24 +146,47 @@ export async function fetchArchivesForYears(
 // --- 内部ヘルパー ---
 
 /**
+ * "YYYY-MM-DD" 形式の文字列をローカルタイムゾーンの午前0時としてパースする。
+ */
+function parseDateLocal(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/**
  * ArchiveFile（JSON）をAppEvent配列に変換する。
  */
 function parseArchive(archive: ArchiveFile): {
   events: AppEvent[];
   calendars: CalendarInfo[];
 } {
-  const events: AppEvent[] = archive.events.map(e => ({
-    id: e.id,
-    calendarId: e.calendarId,
-    title: e.title,
-    description: e.description || '',
-    location: e.location || '',
-    start: new Date(e.start),
-    end: new Date(e.end),
-    isAllDay: e.isAllDay,
-    source: 'archive' as const,
-    eventColor: e.eventColor || null,
-  }));
+  const events: AppEvent[] = archive.events.map(e => {
+    let start: Date;
+    let end: Date;
+
+    if (e.isAllDay) {
+      start = parseDateLocal(e.start);
+      end = parseDateLocal(e.end || e.start);
+      // Google Calendar APIの仕様に合わせて終日イベントは1ミリ秒引く（排他処理を包含に補正）
+      end.setTime(end.getTime() - 1);
+    } else {
+      start = new Date(e.start);
+      end = new Date(e.end);
+    }
+
+    return {
+      id: e.id,
+      calendarId: e.calendarId,
+      title: e.title,
+      description: e.description || '',
+      location: e.location || '',
+      start,
+      end,
+      isAllDay: e.isAllDay,
+      source: 'archive' as const,
+      eventColor: e.eventColor || null,
+    };
+  });
 
   const calendars: CalendarInfo[] = archive.calendars.map(c => ({
     id: c.id,
